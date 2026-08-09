@@ -197,20 +197,38 @@ upsert_local_properties() {
   printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$key" "$file"
 }
 
-TOTAL_STAGES=6
+append_line_if_missing() {
+  local file="$1" line="$2"
+  touch "$file"
+  if ! grep -Fqx "$line" "$file"; then
+    printf '%s\n' "$line" >> "$file"
+    printf '  %s✓ wrote%s %s → %s\n' "$GREEN" "$RESET" "$line" "$file"
+  else
+    note "already present in $file: $line"
+  fi
+}
 
-banner "Light SDK contributor bootstrap"
+resolve_bin() {
+  local preferred="$1" fallback="$2"
+  if [[ -x "$preferred" ]]; then
+    printf '%s' "$preferred"
+  elif command -v "$fallback" >/dev/null 2>&1; then
+    command -v "$fallback"
+  else
+    printf ''
+  fi
+}
+
+TOTAL_STAGES=9
+
+banner "Light SDK CLI-only bootstrap"
 
 stage "Install prerequisites"
-say "We'll verify the local tooling needed to build and test this repo."
-open_url "https://developer.android.com/studio"
-open_url "https://cli.github.com/"
-step "Install Android Studio (includes SDK manager)."
-step "Install GitHub CLI and sign in if needed."
-step "Ensure Java 17 is installed (PR CI uses JDK 17)."
-pause "Press Enter after installs are complete"
+say "We'll verify tooling and only open install links for missing tools."
+step "Required: git, java (JDK 17), curl, unzip"
+step "Optional: gh"
 
-for cmd in git gh java adb emulator; do
+for cmd in git java curl unzip; do
   if command -v "$cmd" >/dev/null 2>&1; then
     say "Found: $cmd"
   else
@@ -219,85 +237,287 @@ for cmd in git gh java adb emulator; do
   fi
 done
 
-stage "Set local SDK and JDK paths"
-say "We'll store your local paths in $ENV_FILE."
-ask ANDROID_SDK_ROOT "Paste ANDROID_SDK_ROOT (example: ~/Library/Android/sdk):"
+if command -v gh >/dev/null 2>&1; then
+  say "Found: gh"
+else
+  warn "Missing: gh (optional)"
+  open_url "https://cli.github.com/"
+  SKIPPED+=("Install GitHub CLI (optional)")
+fi
+
+pause "Press Enter to continue"
+
+stage "Set SDK and JDK paths"
+say "We'll store local paths in $ENV_FILE and local.properties."
+ask ANDROID_SDK_ROOT "Paste ANDROID_SDK_ROOT (example: ~/Android/Sdk):"
 ask JAVA_HOME "Paste JAVA_HOME (JDK 17 home path):"
+ANDROID_SDK_ROOT="${ANDROID_SDK_ROOT/#\~/$HOME}"
+JAVA_HOME="${JAVA_HOME/#\~/$HOME}"
 write_env ANDROID_SDK_ROOT "$ANDROID_SDK_ROOT"
 write_env JAVA_HOME "$JAVA_HOME"
+upsert_local_properties "sdk.dir" "$ANDROID_SDK_ROOT"
+mkdir -p "$ANDROID_SDK_ROOT"
 
-if confirm "Also write sdk.dir to local.properties for this checkout?"; then
-  # Gradle local.properties expects an absolute path or a user-home style path.
-  upsert_local_properties "sdk.dir" "$ANDROID_SDK_ROOT"
+if [[ -n "${SHELL:-}" && "${SHELL##*/}" == "zsh" ]]; then
+  PROFILE_FILE="$HOME/.zshrc"
+elif [[ -n "${SHELL:-}" && "${SHELL##*/}" == "bash" ]]; then
+  PROFILE_FILE="$HOME/.bashrc"
 else
-  note "Skipped local.properties update."
+  PROFILE_FILE="$HOME/.profile"
 fi
 
-stage "Create LP3-like AVD"
-say "We'll walk the exact emulator profile recommended by the repo docs."
-open_url "https://developer.android.com/studio/run/managing-avds"
-step "In Android Studio: Device Manager → Create Device."
-step "Set screen to 1080 x 1240, 3.92-inch display."
-step "Choose API 34 system image WITHOUT Google Play Services (not Play Store)."
-step "Finish creation and note the AVD name."
-ask LIGHT_AVD_NAME "Paste the AVD name you created:"
-write_env LIGHT_AVD_NAME "$LIGHT_AVD_NAME"
+append_line_if_missing "$PROFILE_FILE" "export ANDROID_SDK_ROOT=\"$ANDROID_SDK_ROOT\""
+append_line_if_missing "$PROFILE_FILE" "export JAVA_HOME=\"$JAVA_HOME\""
+append_line_if_missing "$PROFILE_FILE" "export PATH=\"$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$JAVA_HOME/bin:\$PATH\""
 
-stage "Optional: configure LightOS emulator as system app"
-say "This stage follows docs/system_app/README.md exactly."
-open_url "https://github.com/seandstewart/light-page/blob/main/docs/system_app/README.md"
-if confirm "Do you want to perform system-app setup now?"; then
-  step "Boot emulator with writable system: emulator -avd <name> -writable-system"
-  step "Run: adb root && adb remount"
-  step "If remount fails, run: adb disable-verity && adb reboot, then adb root && adb remount"
-  step "Generate platform.jks at sdk/emulator/keys/platform.jks using the documented commands."
-  step "Build emulator app: ./gradlew :sdk:emulator:assembleDebug"
-  step "Push APK to /system/priv-app/LightOSEmulator/LightOSEmulator.apk and reboot."
-  step "Verify: adb shell pm path com.thelightphone.sdk.emulator"
-  step "Verify UID: adb shell dumpsys package com.thelightphone.sdk.emulator | grep uid="
-  pause "Press Enter after completing and verifying system-app setup"
+export ANDROID_SDK_ROOT="$ANDROID_SDK_ROOT"
+export JAVA_HOME="$JAVA_HOME"
+export PATH="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin:$ANDROID_SDK_ROOT/platform-tools:$ANDROID_SDK_ROOT/emulator:$JAVA_HOME/bin:$PATH"
+
+say "Updated current shell PATH for this wizard run."
+note "Open a new shell (or run: source $PROFILE_FILE) after setup."
+
+CMDLINE_TOOLS_BIN="$ANDROID_SDK_ROOT/cmdline-tools/latest/bin"
+SDKMANAGER="$(resolve_bin "$CMDLINE_TOOLS_BIN/sdkmanager" sdkmanager)"
+AVDMANAGER="$(resolve_bin "$CMDLINE_TOOLS_BIN/avdmanager" avdmanager)"
+
+stage "Install Android command-line tools"
+if [[ -n "$SDKMANAGER" && -n "$AVDMANAGER" ]]; then
+  say "cmdline-tools already installed."
+  note "sdkmanager: $SDKMANAGER"
+  note "avdmanager: $AVDMANAGER"
 else
-  note "Skipped system-app setup."
-fi
+  warn "cmdline-tools not found; downloading release zip."
+  open_url "https://developer.android.com/tools#tools-sdk"
+  step "Copy the direct command-line tools ZIP URL for your OS."
+  ask CMDLINE_TOOLS_URL "Paste command-line tools ZIP URL:"
+  write_env CMDLINE_TOOLS_URL "$CMDLINE_TOOLS_URL"
 
-stage "Run repo validation checks"
-say "We'll run contributor sanity checks from CONTRIBUTING and the v1 spec baseline."
-if confirm "Run ./gradlew check now?"; then
-  if ./gradlew check --stacktrace; then
-    say "Gradle check passed."
+  if [[ -z "$CMDLINE_TOOLS_URL" ]]; then
+    warn "No URL provided; cannot install cmdline-tools."
+    SKIPPED+=("Install Android cmdline-tools")
   else
-    warn "Gradle check failed. Review output above."
-    SKIPPED+=("Fix failing ./gradlew check")
+    TMP_DIR=$(mktemp -d)
+    ZIP_PATH="$TMP_DIR/cmdline-tools.zip"
+    EXTRACT_DIR="$TMP_DIR/extract"
+    mkdir -p "$EXTRACT_DIR"
+
+    if curl -fL "$CMDLINE_TOOLS_URL" -o "$ZIP_PATH"; then
+      unzip -q "$ZIP_PATH" -d "$EXTRACT_DIR"
+      mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools"
+      rm -rf "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+      if [[ -d "$EXTRACT_DIR/cmdline-tools" ]]; then
+        mv "$EXTRACT_DIR/cmdline-tools" "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+      else
+        mkdir -p "$ANDROID_SDK_ROOT/cmdline-tools/latest"
+        mv "$EXTRACT_DIR"/* "$ANDROID_SDK_ROOT/cmdline-tools/latest/"
+      fi
+      say "Installed cmdline-tools to $ANDROID_SDK_ROOT/cmdline-tools/latest"
+      SDKMANAGER="$(resolve_bin "$CMDLINE_TOOLS_BIN/sdkmanager" sdkmanager)"
+      AVDMANAGER="$(resolve_bin "$CMDLINE_TOOLS_BIN/avdmanager" avdmanager)"
+    else
+      warn "Failed to download cmdline-tools from provided URL."
+      SKIPPED+=("Install Android cmdline-tools")
+    fi
+    rm -rf "$TMP_DIR"
+  fi
+fi
+
+stage "Install SDK packages with sdkmanager"
+if [[ -z "$SDKMANAGER" ]]; then
+  warn "sdkmanager unavailable."
+  SKIPPED+=("Install SDK packages via sdkmanager")
+else
+  if [[ "$(uname -m)" == "arm64" || "$(uname -m)" == "aarch64" ]]; then
+    DEFAULT_ABI="arm64-v8a"
+  else
+    DEFAULT_ABI="x86_64"
+  fi
+
+  ask ANDROID_ABI "ABI for API 34 image (default: $DEFAULT_ABI):"
+  [[ -z "$ANDROID_ABI" ]] && ANDROID_ABI="$DEFAULT_ABI"
+
+  ask ANDROID_TAG "System image tag (default: default):"
+  [[ -z "$ANDROID_TAG" ]] && ANDROID_TAG="default"
+
+  SYSTEM_IMAGE_PACKAGE="system-images;android-34;$ANDROID_TAG;$ANDROID_ABI"
+  write_env ANDROID_ABI "$ANDROID_ABI"
+  write_env ANDROID_TAG "$ANDROID_TAG"
+  write_env ANDROID_SYSTEM_IMAGE "$SYSTEM_IMAGE_PACKAGE"
+
+  say "Accepting SDK licenses..."
+  yes | "$SDKMANAGER" --sdk_root="$ANDROID_SDK_ROOT" --licenses >/dev/null || true
+
+  if "$SDKMANAGER" --sdk_root="$ANDROID_SDK_ROOT" \
+      "platform-tools" \
+      "emulator" \
+      "platforms;android-34" \
+      "$SYSTEM_IMAGE_PACKAGE"; then
+    say "Installed platform-tools, emulator, android-34 platform, and system image."
+  else
+    warn "sdkmanager install failed."
+    SKIPPED+=("Install SDK packages via sdkmanager")
+  fi
+fi
+
+stage "Create AVD with avdmanager"
+if [[ -z "$AVDMANAGER" ]]; then
+  warn "avdmanager unavailable."
+  SKIPPED+=("Create AVD with avdmanager")
+else
+  ask LIGHT_AVD_NAME "AVD name (default: light-phone-iii-api34):"
+  [[ -z "$LIGHT_AVD_NAME" ]] && LIGHT_AVD_NAME="light-phone-iii-api34"
+  write_env LIGHT_AVD_NAME "$LIGHT_AVD_NAME"
+
+  if "$AVDMANAGER" list avd | grep -q "Name: $LIGHT_AVD_NAME"; then
+    note "AVD already exists: $LIGHT_AVD_NAME"
+  else
+    if echo "no" | "$AVDMANAGER" create avd \
+        --name "$LIGHT_AVD_NAME" \
+        --package "$SYSTEM_IMAGE_PACKAGE" \
+        --device "pixel_5"; then
+      say "Created AVD: $LIGHT_AVD_NAME"
+    else
+      warn "Failed to create AVD."
+      SKIPPED+=("Create AVD with avdmanager")
+    fi
+  fi
+fi
+
+stage "Boot and prepare emulator (system-app step 2)"
+EMULATOR_BIN="$(resolve_bin "$ANDROID_SDK_ROOT/emulator/emulator" emulator)"
+ADB_BIN="$(resolve_bin "$ANDROID_SDK_ROOT/platform-tools/adb" adb)"
+
+if [[ -z "$LIGHT_AVD_NAME" ]]; then
+  LIGHT_AVD_NAME="light-phone-iii-api34"
+fi
+
+if [[ -x "$HOME/.android/avd/$LIGHT_AVD_NAME.avd/config.ini" ]]; then
+  AVD_CONFIG="$HOME/.android/avd/$LIGHT_AVD_NAME.avd/config.ini"
+  sed -i.bak '/^hw.lcd.width=/d;/^hw.lcd.height=/d;/^hw.lcd.density=/d;/^skin.name=/d;/^skin.path=/d' "$AVD_CONFIG" || true
+  printf '%s\n' "hw.lcd.width=1080" >> "$AVD_CONFIG"
+  printf '%s\n' "hw.lcd.height=1240" >> "$AVD_CONFIG"
+  printf '%s\n' "hw.lcd.density=320" >> "$AVD_CONFIG"
+  printf '%s\n' "skin.name=1080x1240" >> "$AVD_CONFIG"
+  printf '%s\n' "skin.path=_no_skin" >> "$AVD_CONFIG"
+  say "Applied LP3-like display settings to $AVD_CONFIG"
+else
+  warn "AVD config not found; skipped display tuning."
+fi
+
+if [[ -n "$EMULATOR_BIN" && -n "$ADB_BIN" ]]; then
+  if confirm "Launch emulator with -writable-system now?"; then
+    "$EMULATOR_BIN" -avd "$LIGHT_AVD_NAME" -writable-system >/dev/null 2>&1 &
+    sleep 5
+    "$ADB_BIN" wait-for-device || true
+    "$ADB_BIN" root || true
+    if ! "$ADB_BIN" remount; then
+      warn "adb remount failed. If verity is enabled, run: adb disable-verity && adb reboot"
+      SKIPPED+=("If needed: adb disable-verity && adb reboot && adb root && adb remount")
+    fi
+    step "Sanity check test-keys: $ADB_BIN shell getprop ro.build.description"
+  else
+    SKIPPED+=("Boot emulator with -writable-system and run adb remount")
   fi
 else
+  warn "emulator/adb not found."
+  SKIPPED+=("Boot and prepare emulator for system app install")
+fi
+
+stage "System-app setup steps 3-5"
+if confirm "Run system-app install workflow now?"; then
+  mkdir -p sdk/emulator/keys
+
+  if [[ ! -f sdk/emulator/keys/platform.jks ]]; then
+    step "Generating platform signing keystore at sdk/emulator/keys/platform.jks"
+    curl -fL "https://raw.githubusercontent.com/wfairclough/android_aosp_keys/refs/heads/master/platform.x509.pem" -o /tmp/platform.x509.pem
+    curl -fL "https://raw.githubusercontent.com/wfairclough/android_aosp_keys/refs/heads/master/platform.pk8" -o /tmp/platform.pk8
+    openssl pkcs8 -inform DER -nocrypt -in /tmp/platform.pk8 -out /tmp/platform.pem
+    openssl pkcs12 -export -in /tmp/platform.x509.pem -inkey /tmp/platform.pem -name platform -out /tmp/platform.p12 -passout pass:android
+    keytool -importkeystore -srckeystore /tmp/platform.p12 -srcstoretype PKCS12 -srcstorepass android -destkeystore sdk/emulator/keys/platform.jks -deststoretype JKS -deststorepass android -noprompt
+    rm -f /tmp/platform.pk8 /tmp/platform.x509.pem /tmp/platform.pem /tmp/platform.p12
+    say "Generated platform.jks"
+  else
+    note "platform.jks already exists; skipping generation."
+  fi
+
+  if ./gradlew :sdk:emulator:assembleDebug --stacktrace; then
+    say "Built emulator APK."
+  else
+    warn "Failed to build :sdk:emulator:assembleDebug"
+    SKIPPED+=("Build sdk emulator APK")
+  fi
+
+  if [[ -n "$ADB_BIN" ]]; then
+    "$ADB_BIN" shell mkdir -p /system/priv-app/LightOSEmulator || true
+    "$ADB_BIN" push sdk/emulator/build/outputs/apk/debug/emulator-debug.apk /system/priv-app/LightOSEmulator/LightOSEmulator.apk || true
+    "$ADB_BIN" reboot || true
+    "$ADB_BIN" wait-for-device || true
+    step "Verify install path: $ADB_BIN shell pm path com.thelightphone.sdk.emulator"
+    step "Verify uid=1000: $ADB_BIN shell dumpsys package com.thelightphone.sdk.emulator | grep uid="
+  else
+    warn "adb unavailable; cannot push privileged app."
+    SKIPPED+=("Install emulator APK as privileged system app")
+  fi
+else
+  SKIPPED+=("Run system-app steps 3-5")
+fi
+
+stage "System-app steps 6-8 (post-setup options)"
+if [[ -n "$ADB_BIN" ]]; then
+  if confirm "Run step 6 quick reinstall command now?"; then
+    ./gradlew :sdk:emulator:assembleDebug --stacktrace || true
+    "$ADB_BIN" install -r sdk/emulator/build/outputs/apk/debug/emulator-debug.apk || true
+  else
+    note "Step 6 skipped."
+  fi
+
+  if confirm "Set LightOS emulator as launcher (step 7)?"; then
+    "$ADB_BIN" shell cmd package set-home-activity com.thelightphone.sdk.emulator/.MainActivity || true
+  else
+    note "Step 7 skipped."
+  fi
+
+  if confirm "Disable animations (step 8)?"; then
+    "$ADB_BIN" shell settings put global window_animation_scale 0 || true
+    "$ADB_BIN" shell settings put global transition_animation_scale 0 || true
+    "$ADB_BIN" shell settings put global animator_duration_scale 0 || true
+  else
+    note "Step 8 skipped."
+  fi
+else
+  SKIPPED+=("Run system-app steps 6-8 (adb unavailable)")
+fi
+
+stage "Sanity checks"
+if [[ -n "$ADB_BIN" ]]; then
+  step "Check emulator app path"
+  "$ADB_BIN" shell pm path com.thelightphone.sdk.emulator || true
+  step "Check uid"
+  "$ADB_BIN" shell dumpsys package com.thelightphone.sdk.emulator | grep "uid=" || true
+  step "Check build description ends with test-keys"
+  "$ADB_BIN" shell getprop ro.build.description || true
+fi
+
+if confirm "Run ./gradlew check now?"; then
+  ./gradlew check --stacktrace || SKIPPED+=("Fix failing ./gradlew check")
+else
   SKIPPED+=("Run ./gradlew check")
-  note "Skipped ./gradlew check"
 fi
 
 if confirm "Run ./gradlew :tool:assembleDebug now?"; then
-  if ./gradlew :tool:assembleDebug --stacktrace; then
-    say ":tool:assembleDebug passed."
-  else
-    warn ":tool:assembleDebug failed. Review output above."
-    SKIPPED+=("Fix failing ./gradlew :tool:assembleDebug")
-  fi
+  ./gradlew :tool:assembleDebug --stacktrace || SKIPPED+=("Fix failing ./gradlew :tool:assembleDebug")
 else
   SKIPPED+=("Run ./gradlew :tool:assembleDebug")
-  note "Skipped :tool:assembleDebug"
 fi
 
-stage "Optional: GitHub auth sanity"
-say "We'll check whether GitHub CLI is authenticated for issue/PR workflow."
 if command -v gh >/dev/null 2>&1; then
   if gh auth status >/dev/null 2>&1; then
     say "gh is authenticated."
   else
-    warn "gh is installed but not authenticated."
+    warn "gh installed but not authenticated."
     SKIPPED+=("Run gh auth login")
   fi
-else
-  warn "gh is not installed."
-  SKIPPED+=("Install GitHub CLI")
 fi
 
 finish
