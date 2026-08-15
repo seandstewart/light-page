@@ -11,3 +11,13 @@ Triage uses the default five labels: `needs-triage`, `needs-info`, `ready-for-ag
 ### Domain docs
 
 Domain docs use a single-context layout at the repo root. See `docs/agents/domain.md`.
+
+### Scratch files
+
+The `.scratch/` directory is local only, git-ignored, so will not be visible with git.
+
+### Local Tools
+
+The `justfile` contains commands for development tasks.
+
+`just --list`
