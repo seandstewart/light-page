@@ -5,22 +5,17 @@ import android.net.Uri
 /**
  * Security policy for the M1 browser shell.
  *
- * The [ONLY_TLS] flag defaults to `true` (production). Set it to `false` as a
- * dev override to allow plain `http` navigations; everything else is blocked.
+ * Plain `http` is allowed only in debug builds so the QA fixtures served from
+ * `just serve-fixtures` can be loaded on the emulator. Production/release builds
+ * require TLS.
  */
 object BrowserPolicy {
-
-    /**
-     * When `true` only `https` (and internal `about:`) navigations are allowed.
-     * When `false` plain `http` is also permitted for local development.
-     */
-    const val ONLY_TLS = true
 
     private val ALLOWED_SCHEMES = setOf("https", "about")
 
     fun isAllowed(uri: Uri): Boolean {
         val scheme = uri.scheme?.lowercase() ?: return false
-        if (scheme == "http") return !ONLY_TLS
+        if (scheme == "http") return BuildConfig.DEBUG
         return scheme in ALLOWED_SCHEMES
     }
 }

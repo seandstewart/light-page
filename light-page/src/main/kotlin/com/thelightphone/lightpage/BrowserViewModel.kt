@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.update
 class BrowserViewModel : LightViewModel<Unit>() {
 
     private val _uiState = MutableStateFlow(
-        BrowserUiState(requestedUrl = "https://example.com")
+        BrowserUiState(requestedUrl = defaultStartUrl())
     )
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
 
@@ -41,5 +41,10 @@ class BrowserViewModel : LightViewModel<Unit>() {
     fun requestExit() {
         // The screen owns the WebView reference and the LightScreen back path;
         // the ViewModel intentionally never holds the WebView.
+    }
+
+    private companion object {
+        fun defaultStartUrl(): String =
+            if (BuildConfig.DEBUG) "http://10.0.2.2:8000/" else "https://example.com"
     }
 }

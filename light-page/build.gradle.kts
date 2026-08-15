@@ -28,6 +28,10 @@ android {
         manifestPlaceholders["sdkVersion"] = property("sdkVersion") as String
     }
 
+    buildFeatures {
+        buildConfig = true
+    }
+
     buildTypes {
         debug {
             signingConfig = signingConfigs.getByName("lightsdkDev")

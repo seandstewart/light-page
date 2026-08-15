@@ -23,13 +23,15 @@ All fixtures live in `fixtures/m2/` and are designed to be served over HTTP (the
 
    The default port is `8000`. Use a custom port with `just serve-fixtures 8080`.
 
-2. Determine the host IP reachable from the Android emulator or device. On the emulator, `10.0.2.2` usually maps to the host loopback.
+2. Launch a **debug build** of Light Page on the emulator or device. Debug builds allow plain `http` and default to the fixture index at `http://10.0.2.2:8000/` (emulator loopback).
 
-3. Launch Light Page, open the URL entry modal, and load:
-   - `http://10.0.2.2:8000/form-controls.html`
-   - `http://10.0.2.2:8000/content-types.html`
-   - `http://10.0.2.2:8000/spa-navigation.html`
-   - `http://10.0.2.2:8000/delayed-render.html`
+3. The index page lists links to each fixture:
+   - Form Controls
+   - Content Types
+   - SPA Navigation
+   - Delayed Render
+
+   Tap a link to load the fixture, or enter a fixture URL directly in the URL editor.
 
 ## Pass criteria
 
