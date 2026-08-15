@@ -374,6 +374,8 @@ class LightSdkPlugin : Plugin<Project> {
             .filter { it.isFile && it.extension == "kt" }
             .forEach { file ->
                 val relativePath = file.relativeTo(project.projectDir).path
+                val sourceSet = file.relativeTo(srcDirs).path.split(File.separator).firstOrNull()?.lowercase()
+                if (sourceSet in setOf("test", "androidtest")) return@forEach
                 file.readLines().forEachIndexed { index, line ->
                     findSourceLineViolations(line).forEach { msg ->
                         violations.add("  $relativePath:${index + 1}: $msg")
@@ -385,6 +387,13 @@ class LightSdkPlugin : Plugin<Project> {
     private fun isInternalConfig(name: String): Boolean {
         return INTERNAL_CONFIG_PREFIXES.any { name.startsWith(it) }
     }
+
+    /**
+     * Test configurations (testImplementation, androidTestImplementation, etc.)
+     * do not ship in the APK, so their dependencies are validated by the
+     * regular test runner classpath, not the Light SDK production allowlist.
+     */
+    private fun isTestConfig(name: String): Boolean = name.contains("test", ignoreCase = true)
 
     /**
      * KSP exposes one declarable + many variant configurations (ksp,
@@ -423,7 +432,7 @@ class LightSdkPlugin : Plugin<Project> {
         val pluginJar = ownPluginJar()
 
         project.configurations
-            .filter { it.isCanBeDeclared && !isInternalConfig(it.name) }
+            .filter { it.isCanBeDeclared && !isInternalConfig(it.name) && !isTestConfig(it.name) }
             .forEach { config ->
                 val isKsp = isKspConfig(config.name)
                 config.dependencies.forEach { dep ->
@@ -470,7 +479,7 @@ class LightSdkPlugin : Plugin<Project> {
 
     private fun validateResolvedDependencies(project: Project, violations: MutableList<String>) {
         project.configurations
-            .filter { it.isCanBeResolved && !isInternalConfig(it.name) }
+            .filter { it.isCanBeResolved && !isInternalConfig(it.name) && !isTestConfig(it.name) }
             .forEach { config ->
                 val resolved = try {
                     config.resolvedConfiguration.firstLevelModuleDependencies
@@ -510,7 +519,8 @@ class LightSdkPlugin : Plugin<Project> {
                     if (resolvedCoord in allowedTransitives) return@forEach
                     if (allowPredicate(dep.moduleGroup, dep.moduleName)) return@forEach
 
-                    val tag = if (isKsp) "unexpected resolved KSP dependency" else "unexpected resolved dependency — possible substitution"
+                    val tag =
+                        if (isKsp) "unexpected resolved KSP dependency" else "unexpected resolved dependency — possible substitution"
                     violations.add("  ${config.name}: $resolvedCoord:${dep.moduleVersion} ($tag)")
                 }
             }

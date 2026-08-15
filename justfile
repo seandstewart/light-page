@@ -23,10 +23,15 @@ check:
 lint:
   ./gradlew :light-page:lint --stacktrace
 
-# Run light-page module tests
+# Run light-page module unit tests
 [group('check')]
 test:
   ./gradlew :light-page:test --stacktrace
+
+# Run light-page JS functional tests
+[group('check')]
+test-js:
+  cd light-page/src/test/js && npm install && npm test
 
 # Build Light Page APK
 [group('build')]
@@ -108,7 +113,7 @@ setup-emulator avd=default_avd: (start-emulator-bg avd) wait-device prepare-syst
 
 # Fast local quality gate
 [group('flow')]
-dev-check: lint test build-light-page
+dev-check: lint test test-js build-light-page
 
 # Serve M2 fixture pages over HTTP for visual QA
 [group('qa')]

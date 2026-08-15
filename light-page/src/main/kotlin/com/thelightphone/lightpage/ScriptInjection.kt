@@ -10,12 +10,15 @@ import org.json.JSONObject
  * Asset strings are JSON-encoded with [JSONObject.quote] so they can be safely
  * embedded as JavaScript string literals without manual escaping.
  */
-class ScriptInjection(assets: AssetManager) {
+class ScriptInjection(
+    private val baseCss: String,
+    private val hooksJs: String
+) {
 
-    private val baseCss = assets.open("light-page-theme.css")
-        .bufferedReader().readText()
-    private val hooksJs = assets.open("page-hooks.js")
-        .bufferedReader().readText()
+    constructor(assets: AssetManager) : this(
+        baseCss = assets.open("light-page-theme.css").bufferedReader().readText(),
+        hooksJs = assets.open("page-hooks.js").bufferedReader().readText()
+    )
 
     /**
      * Shared helper used by both the early anti-flash injection and the boot

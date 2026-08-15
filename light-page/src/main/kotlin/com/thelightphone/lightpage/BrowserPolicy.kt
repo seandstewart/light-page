@@ -13,9 +13,14 @@ object BrowserPolicy {
 
     private val ALLOWED_SCHEMES = setOf("https", "about")
 
-    fun isAllowed(uri: Uri): Boolean {
+    fun isAllowed(uri: Uri): Boolean = isAllowed(uri, allowHttp = BuildConfig.DEBUG)
+
+    /**
+     * Testable overload: scheme decision is independent of the build variant.
+     */
+    internal fun isAllowed(uri: Uri, allowHttp: Boolean): Boolean {
         val scheme = uri.scheme?.lowercase() ?: return false
-        if (scheme == "http") return BuildConfig.DEBUG
+        if (scheme == "http") return allowHttp
         return scheme in ALLOWED_SCHEMES
     }
 }

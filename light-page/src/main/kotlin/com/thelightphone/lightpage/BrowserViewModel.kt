@@ -6,10 +6,10 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 
-class BrowserViewModel : LightViewModel<Unit>() {
+class BrowserViewModel(initialUrl: String = defaultStartUrl()) : LightViewModel<Unit>() {
 
     private val _uiState = MutableStateFlow(
-        BrowserUiState(requestedUrl = defaultStartUrl())
+        BrowserUiState(requestedUrl = initialUrl)
     )
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
 
@@ -43,8 +43,8 @@ class BrowserViewModel : LightViewModel<Unit>() {
         // the ViewModel intentionally never holds the WebView.
     }
 
-    private companion object {
-        fun defaultStartUrl(): String =
-            if (BuildConfig.DEBUG) "http://10.0.2.2:8000/" else "https://example.com"
+    internal companion object {
+        fun defaultStartUrl(debug: Boolean = BuildConfig.DEBUG): String =
+            if (debug) "http://10.0.2.2:8000/" else "https://example.com"
     }
 }
