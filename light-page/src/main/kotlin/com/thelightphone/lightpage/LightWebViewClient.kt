@@ -4,8 +4,11 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
 import android.webkit.SslErrorHandler
+import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebViewClient
 
 /**
@@ -45,7 +48,6 @@ class LightWebViewClient(
             WebStateUpdate(
                 url = url,
                 loading = false,
-                error = null,
                 canGoBack = view.canGoBack(),
                 canGoForward = view.canGoForward()
             )
@@ -93,6 +95,67 @@ class LightWebViewClient(
                 error = BrowserError.Tls
             )
         )
+    }
+
+    override fun onReceivedError(
+        view: WebView,
+        request: WebResourceRequest,
+        error: WebResourceError
+    ) {
+        if (request.isForMainFrame) {
+            val browserError = when (error.errorCode) {
+                WebViewClient.ERROR_HOST_LOOKUP,
+                WebViewClient.ERROR_CONNECT,
+                WebViewClient.ERROR_TIMEOUT,
+                WebViewClient.ERROR_IO -> BrowserError.Offline
+
+                WebViewClient.ERROR_FAILED_SSL_HANDSHAKE -> BrowserError.Tls
+
+                WebViewClient.ERROR_UNSUPPORTED_SCHEME,
+                WebViewClient.ERROR_UNSUPPORTED_AUTH_SCHEME -> BrowserError.UnsupportedScheme(
+                    request.url.safeScheme()
+                )
+
+                else -> BrowserError.Offline
+            }
+            onState(
+                WebStateUpdate(
+                    loading = false,
+                    error = browserError
+                )
+            )
+        }
+    }
+
+    override fun onReceivedHttpError(
+        view: WebView,
+        request: WebResourceRequest,
+        errorResponse: WebResourceResponse
+    ) {
+        if (request.isForMainFrame) {
+            onState(
+                WebStateUpdate(
+                    loading = false,
+                    error = BrowserError.Http(errorResponse.statusCode)
+                )
+            )
+        }
+    }
+
+    override fun onRenderProcessGone(
+        view: WebView,
+        detail: RenderProcessGoneDetail
+    ): Boolean {
+        // Returning true means the app handles the crash. The WebView instance is
+        // dead; the screen should recreate it when the user invokes the reload
+        // affordance. We surface the error here so the UI can show the state.
+        onState(
+            WebStateUpdate(
+                loading = false,
+                error = BrowserError.RendererGone
+            )
+        )
+        return true
     }
 
     private fun Uri?.safeScheme(): String = this?.scheme?.lowercase() ?: "unknown"
