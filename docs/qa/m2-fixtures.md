@@ -6,20 +6,22 @@ Covers M2.5 (SPA hooks), M2.6 (debounced MutationObserver), and M2.8 (fixture QA
 
 All fixtures live in `fixtures/m2/` and are designed to be served over HTTP (the app sets `allowFileAccess = false`).
 
-| Fixture | File | What it exercises |
-| ------- | ---- | ----------------- |
-| Form controls | `form-controls.html` | Buttons, text/email/password/search/number/url inputs, select, textarea, checkbox, radio, range, disabled state. Hostile baseline styles verify theme override. |
-| Content types | `content-types.html` | Tables, code blocks, images, SVG. Verifies media scales and monochrome theme applies. |
-| SPA navigation | `spa-navigation.html` | `pushState`, `popstate`, and `hashchange` route changes. Verifies debounced re-theme. |
-| Delayed render | `delayed-render.html` | Content injected 2 seconds after `onPageFinished`. Verifies MutationObserver picks it up. |
+| Fixture        | File                  | What it exercises                                                                                                                                               |
+| -------------- | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Form controls  | `form-controls.html`  | Buttons, text/email/password/search/number/url inputs, select, textarea, checkbox, radio, range, disabled state. Hostile baseline styles verify theme override. |
+| Content types  | `content-types.html`  | Tables, code blocks, images, SVG. Verifies media scales and monochrome theme applies.                                                                           |
+| SPA navigation | `spa-navigation.html` | `pushState`, `popstate`, and `hashchange` route changes. Verifies debounced re-theme.                                                                           |
+| Delayed render | `delayed-render.html` | Content injected 2 seconds after `onPageFinished`. Verifies MutationObserver picks it up.                                                                       |
 
 ## How to run
 
-1. Serve the fixtures from the repo root:
+1. Serve the fixtures:
 
    ```bash
-   python3 -m http.server 8000 --directory fixtures/m2
+   just serve-fixtures
    ```
+
+   The default port is `8000`. Use a custom port with `just serve-fixtures 8080`.
 
 2. Determine the host IP reachable from the Android emulator or device. On the emulator, `10.0.2.2` usually maps to the host loopback.
 

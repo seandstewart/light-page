@@ -109,3 +109,8 @@ setup-emulator avd=default_avd: (start-emulator-bg avd) wait-device prepare-syst
 # Fast local quality gate
 [group('flow')]
 dev-check: lint test build-light-page
+
+# Serve M2 fixture pages over HTTP for visual QA
+[group('qa')]
+serve-fixtures port='8000':
+  python3 -m http.server {{port}} --directory fixtures/m2
