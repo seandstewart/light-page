@@ -26,4 +26,17 @@ sealed interface BrowserError {
     data object Offline : BrowserError
     data object RendererGone : BrowserError
     data class Http(val code: Int) : BrowserError
+    data class UnsupportedScheme(val scheme: String) : BrowserError
+}
+
+/**
+ * Human-readable status text for a browser error.
+ * Blocked schemes render the exact `Unsupported scheme (<scheme>)` message.
+ */
+fun BrowserError.message(): String = when (this) {
+    is BrowserError.Tls -> "TLS error"
+    is BrowserError.Offline -> "Offline"
+    is BrowserError.RendererGone -> "Renderer gone"
+    is BrowserError.Http -> "HTTP error $code"
+    is BrowserError.UnsupportedScheme -> "Unsupported scheme ($scheme)"
 }

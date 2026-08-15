@@ -1,6 +1,8 @@
 package com.thelightphone.sample
 
+import android.annotation.SuppressLint
 import android.webkit.WebChromeClient
+import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
@@ -45,6 +47,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
         }
     }
 
+    @SuppressLint("SetJavaScriptEnabled")
     @Composable
     override fun Content() {
         val themeColors by LightThemeController.colors.collectAsState()
@@ -57,8 +60,12 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                     .background(LightThemeTokens.colors.background)
             ) {
                 // Read-only truncated URL status row.
+                val statusText = state.error?.message()
+                    ?: state.committedUrl?.take(38)
+                    ?: state.requestedUrl.take(38)
+
                 LightText(
-                    text = state.committedUrl?.take(38) ?: state.requestedUrl.take(38),
+                    text = statusText,
                     variant = LightTextVariant.Copy,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -72,13 +79,21 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                         .weight(1f),
                     factory = { context ->
                         WebView(context).apply {
+                            // Hardened browser settings. JS and DOM storage are required
+                            // for the WebView shell; file/content access, mixed content,
+                            // and popup windows are explicitly disabled.
                             settings.apply {
                                 javaScriptEnabled = true
                                 domStorageEnabled = true
+                                allowFileAccess = false
+                                allowContentAccess = false
+                                setSupportMultipleWindows(false)
+                                javaScriptCanOpenWindowsAutomatically = false
+                                mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
                             }
                             setBackgroundColor(android.graphics.Color.WHITE)
                             webChromeClient = WebChromeClient()
-                            webViewClient = BrowserWebViewClient(onState = viewModel::onWebState)
+                            webViewClient = LightWebViewClient(onState = viewModel::onWebState)
                             loadUrl(state.requestedUrl)
                             webView = this
                         }
