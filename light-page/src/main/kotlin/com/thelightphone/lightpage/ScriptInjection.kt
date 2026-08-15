@@ -12,11 +12,13 @@ import org.json.JSONObject
  */
 class ScriptInjection(
     private val baseCss: String,
+    private val readerCss: String,
     private val hooksJs: String
 ) {
 
     constructor(assets: AssetManager) : this(
         baseCss = assets.open("light-page-theme.css").bufferedReader().readText(),
+        readerCss = assets.open("reader-theme.css").bufferedReader().readText(),
         hooksJs = assets.open("page-hooks.js").bufferedReader().readText()
     )
 
@@ -62,6 +64,7 @@ class ScriptInjection(
         val payload = hooksJs
             .replace("__ENSURE_STYLE__", ensureStyleJs)
             .replace("__BASE_CSS__", baseCss.asJsString())
+            .replace("__READER_CSS__", readerCss.asJsString())
         view.evaluateJavascript(payload, null)
     }
 }

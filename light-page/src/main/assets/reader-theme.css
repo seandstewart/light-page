@@ -1,0 +1,99 @@
+:root {
+  color-scheme: light;
+  --light-reader-bg: #ffffff;
+  --light-reader-fg: #000000;
+  --light-reader-muted: #555555;
+  --light-reader-border: #000000;
+  --light-reader-control-height: 48px;
+  --light-reader-max-width: 38rem;
+  --light-reader-line-height: 1.6;
+}
+
+#__light_reader_root {
+  background: var(--light-reader-bg);
+  color: var(--light-reader-fg);
+  font-family: system-ui, sans-serif;
+  line-height: var(--light-reader-line-height);
+  padding: 16px;
+  max-width: var(--light-reader-max-width);
+  margin: 0 auto;
+}
+
+#__light_reader_root h1,
+#__light_reader_root h2,
+#__light_reader_root h3,
+#__light_reader_root h4,
+#__light_reader_root h5,
+#__light_reader_root h6 {
+  color: var(--light-reader-fg);
+  line-height: 1.25;
+  margin: 1.5em 0 0.5em;
+}
+
+#__light_reader_root p {
+  margin: 0.75em 0;
+}
+
+#__light_reader_root a {
+  color: var(--light-reader-fg);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}
+
+#__light_reader_root img,
+#__light_reader_root video,
+#__light_reader_root svg,
+#__light_reader_root figure {
+  max-width: 100%;
+  height: auto;
+}
+
+#__light_reader_root ul,
+#__light_reader_root ol {
+  padding-left: 1.5em;
+  margin: 0.75em 0;
+}
+
+#__light_reader_root li {
+  margin: 0.25em 0;
+}
+
+#__light_reader_root table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+#__light_reader_root th,
+#__light_reader_root td {
+  border: 1px solid var(--light-reader-border);
+  padding: 8px;
+  text-align: left;
+}
+
+#__light_reader_root code,
+#__light_reader_root pre {
+  font-family: ui-monospace, monospace;
+  background: #f2f2f2;
+  padding: 0.2em 0.4em;
+}
+
+#__light_reader_root pre {
+  padding: 1em;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+/* Hide the original page content by hiding every direct child of <body> except
+   the reader root. The reader root remains visible and lays out normally. */
+html.__light_reader_hidden body > *:not(#__light_reader_root) {
+  display: none !important;
+}
+
+/* Ensure the reader root is always visible when the hide class is active. */
+html.__light_reader_hidden #__light_reader_root {
+  display: block !important;
+}
+
+/* Open shadow roots may still contain their original styles; reader content is
+   inside the light DOM root, so the above rules are sufficient. */

@@ -28,7 +28,7 @@ class ScriptInjectionTest {
 
     @Test
     fun `injectBaseTheme evaluates a script that references the base CSS`() {
-        val injection = ScriptInjection(baseCss = "body{color:red}", hooksJs = "")
+        val injection = ScriptInjection(baseCss = "body{color:red}", readerCss = "", hooksJs = "")
         val view = mockk<WebView>(relaxed = true)
 
         injection.injectBaseTheme(view)
@@ -44,7 +44,8 @@ class ScriptInjectionTest {
     fun `injectBootScript replaces placeholders and evaluates the payload`() {
         val injection = ScriptInjection(
             baseCss = "body{color:black}",
-            hooksJs = "__ENSURE_STYLE__; const css = __BASE_CSS__;"
+            readerCss = "#root{color:black}",
+            hooksJs = "__ENSURE_STYLE__; const css = __BASE_CSS__; const r = __READER_CSS__;"
         )
         val view = mockk<WebView>(relaxed = true)
 
@@ -57,5 +58,6 @@ class ScriptInjectionTest {
         assertTrue(script.contains("\"encoded\""), "CSS should be JSON-encoded as a string literal")
         assertTrue(!script.contains("__ENSURE_STYLE__"), "placeholder should be replaced")
         assertTrue(!script.contains("__BASE_CSS__"), "placeholder should be replaced")
+        assertTrue(!script.contains("__READER_CSS__"), "reader CSS placeholder should be replaced")
     }
 }

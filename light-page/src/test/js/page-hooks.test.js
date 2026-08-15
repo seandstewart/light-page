@@ -5,9 +5,11 @@ const test = require("node:test");
 const { JSDOM } = require("jsdom");
 
 const HOOKS_PATH = path.join(__dirname, "../../main/assets/page-hooks.js");
-const CSS_PATH = path.join(__dirname, "../../main/assets/light-page-theme.css");
+const BASE_CSS_PATH = path.join(__dirname, "../../main/assets/light-page-theme.css");
+const READER_CSS_PATH = path.join(__dirname, "../../main/assets/reader-theme.css");
 
-const baseCss = fs.readFileSync(CSS_PATH, "utf8");
+const baseCss = fs.readFileSync(BASE_CSS_PATH, "utf8");
+const readerCss = fs.readFileSync(READER_CSS_PATH, "utf8");
 const hooksTemplate = fs.readFileSync(HOOKS_PATH, "utf8");
 
 const ensureStyleJs = `
@@ -22,9 +24,9 @@ const ensureStyle = (id, css) => {
 };
 `;
 
-function bootHooks() {
-  const dom = new JSDOM("<!DOCTYPE html><html><head></head><body></body></html>", {
-    url: "https://example.com/",
+function bootHooks(html = "<!DOCTYPE html><html><head></head><body></body></html>", url = "https://example.com/") {
+  const dom = new JSDOM(html, {
+    url,
     runScripts: "dangerously",
   });
   const window = dom.window;
@@ -32,7 +34,8 @@ function bootHooks() {
 
   const payload = hooksTemplate
     .replace("__ENSURE_STYLE__", ensureStyleJs)
-    .replace("__BASE_CSS__", JSON.stringify(baseCss));
+    .replace("__BASE_CSS__", JSON.stringify(baseCss))
+    .replace("__READER_CSS__", JSON.stringify(readerCss));
 
   window.eval(payload);
 
@@ -54,8 +57,8 @@ test("install is idempotent", () => {
   const { window, close } = bootHooks();
   try {
     let refreshCount = 0;
-    const originalRefresh = window.__lightPageThemeRefresh;
-    window.__lightPageThemeRefresh = () => {
+    const originalRefresh = window.__lightToolRefresh;
+    window.__lightToolRefresh = () => {
       refreshCount++;
       originalRefresh();
     };
@@ -64,9 +67,10 @@ test("install is idempotent", () => {
       hooksTemplate
         .replace("__ENSURE_STYLE__", ensureStyleJs)
         .replace("__BASE_CSS__", JSON.stringify(baseCss))
+        .replace("__READER_CSS__", JSON.stringify(readerCss))
     );
 
-    assert.strictEqual(window.__lightPageThemeInstalled, true, "flag should still be true");
+    assert.strictEqual(window.__lightToolInstalled, true, "flag should still be true");
     assert.strictEqual(
       refreshCount,
       1,
@@ -81,8 +85,8 @@ function debounceTest(name, act) {
   test(name, (t, done) => {
     const { window, document, close } = bootHooks();
     let refreshCount = 0;
-    const originalRefresh = window.__lightPageThemeRefresh;
-    window.__lightPageThemeRefresh = () => {
+    const originalRefresh = window.__lightToolRefresh;
+    window.__lightToolRefresh = () => {
       refreshCount++;
       originalRefresh();
     };
@@ -113,4 +117,39 @@ debounceTest("hashchange triggers a debounced refresh", (window) => {
 debounceTest("MutationObserver schedules a refresh on late DOM changes", (window, document) => {
   const div = document.createElement("div");
   document.body.appendChild(div);
+});
+
+test("reader is enabled by default and can be toggled", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head></head><body>
+      <article>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    assert.strictEqual(window.__lightReaderEnabled, true, "reader should be enabled by default");
+    window.__lightSetReaderEnabled(false);
+    assert.strictEqual(window.__lightReaderEnabled, false, "reader should be disabled");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "original should be visible");
+    window.__lightSetReaderEnabled(true);
+    assert.strictEqual(window.__lightReaderEnabled, true, "reader should be re-enabled");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), true, "reader should be applied");
+  } finally {
+    close();
+  }
+});
+
+test("reader skips ineligible pages", () => {
+  const html = `<!DOCTYPE html><html><head></head><body><p>short</p></body></html>`;
+  const { window, document, close } = bootHooks(html, "https://example.com/search");
+  try {
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "search page should not get reader");
+  } finally {
+    close();
+  }
 });
