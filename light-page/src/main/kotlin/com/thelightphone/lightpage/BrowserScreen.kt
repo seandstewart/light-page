@@ -93,7 +93,10 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                             }
                             setBackgroundColor(android.graphics.Color.WHITE)
                             webChromeClient = WebChromeClient()
-                            webViewClient = LightWebViewClient(onState = viewModel::onWebState)
+                            webViewClient = LightWebViewClient(
+                                injection = ScriptInjection(context.assets),
+                                onState = viewModel::onWebState
+                            )
                             loadUrl(state.requestedUrl)
                             webView = this
                         }

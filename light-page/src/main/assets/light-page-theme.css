@@ -1,0 +1,73 @@
+:root {
+  color-scheme: light;
+  --light-bg: #ffffff;
+  --light-fg: #000000;
+  --light-muted: #555555;
+  --light-border: #000000;
+  --light-surface: #f2f2f2;
+  --light-control-height: 48px;
+}
+
+html,
+body {
+  background: var(--light-bg) !important;
+  color: var(--light-fg) !important;
+  font-family: system-ui, sans-serif !important;
+  -webkit-text-size-adjust: 100%;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit !important;
+  color: var(--light-fg) !important;
+  border: 2px solid var(--light-border) !important;
+  border-radius: 0 !important;
+  box-shadow: none !important;
+  box-sizing: border-box !important;
+}
+
+button,
+input[type="button"],
+input[type="submit"],
+input[type="reset"],
+[role="button"] {
+  min-height: var(--light-control-height) !important;
+  padding: 10px 14px !important;
+  background: var(--light-fg) !important;
+  color: var(--light-bg) !important;
+  font-weight: 600 !important;
+}
+
+input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+select,
+textarea {
+  min-height: var(--light-control-height) !important;
+  padding: 10px 12px !important;
+  background: var(--light-bg) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  inline-size: 24px !important;
+  block-size: 24px !important;
+  accent-color: var(--light-fg) !important;
+}
+
+:focus-visible {
+  outline: 3px solid var(--light-fg) !important;
+  outline-offset: 2px !important;
+}
+
+a {
+  color: var(--light-fg) !important;
+  text-decoration: underline !important;
+  text-underline-offset: 0.15em;
+}
+
+img,
+video,
+svg {
+  max-width: 100%;
+}

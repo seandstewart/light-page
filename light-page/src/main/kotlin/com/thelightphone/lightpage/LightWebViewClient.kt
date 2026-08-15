@@ -16,6 +16,7 @@ import android.webkit.WebViewClient
  * exact `Unsupported scheme (<scheme>)` status.
  */
 class LightWebViewClient(
+    private val injection: ScriptInjection,
     private val onState: (WebStateUpdate) -> Unit
 ) : WebViewClient() {
 
@@ -32,8 +33,14 @@ class LightWebViewClient(
         )
     }
 
+    override fun onPageCommitVisible(view: WebView, url: String?) {
+        super.onPageCommitVisible(view, url)
+        injection.injectBaseTheme(view)
+    }
+
     override fun onPageFinished(view: WebView, url: String?) {
         super.onPageFinished(view, url)
+        injection.injectBootScript(view)
         onState(
             WebStateUpdate(
                 url = url,
