@@ -1,4 +1,4 @@
-package com.thelightphone.sample
+package com.thelightphone.lightpage
 
 import com.thelightphone.sdk.LightViewModel
 import kotlinx.coroutines.flow.MutableStateFlow

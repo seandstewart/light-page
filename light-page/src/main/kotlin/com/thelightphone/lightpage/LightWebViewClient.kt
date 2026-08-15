@@ -1,4 +1,4 @@
-package com.thelightphone.sample
+package com.thelightphone.lightpage
 
 import android.graphics.Bitmap
 import android.net.Uri

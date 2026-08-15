@@ -1,4 +1,4 @@
-package com.thelightphone.sample
+package com.thelightphone.lightpage
 
 data class BrowserUiState(
     val requestedUrl: String,

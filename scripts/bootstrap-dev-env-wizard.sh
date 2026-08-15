@@ -505,10 +505,10 @@ else
   SKIPPED+=("Run ./gradlew check")
 fi
 
-if confirm "Run ./gradlew :tool:assembleDebug now?"; then
-  ./gradlew :tool:assembleDebug --stacktrace || SKIPPED+=("Fix failing ./gradlew :tool:assembleDebug")
+if confirm "Run ./gradlew :light-page:assembleDebug now?"; then
+  ./gradlew :light-page:assembleDebug --stacktrace || SKIPPED+=("Fix failing ./gradlew :light-page:assembleDebug")
 else
-  SKIPPED+=("Run ./gradlew :tool:assembleDebug")
+  SKIPPED+=("Run ./gradlew :light-page:assembleDebug")
 fi
 
 if command -v gh >/dev/null 2>&1; then

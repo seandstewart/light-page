@@ -2,9 +2,9 @@ set shell := ["bash", "-eu", "-o", "pipefail", "-c"]
 set default-list := true
 
 default_avd := "light-phone-iii-api34"
-tool_apk := "tool/build/outputs/apk/debug/tool-debug.apk"
+light_page_apk := "light-page/build/outputs/apk/debug/light-page-debug.apk"
 emulator_apk := "sdk/emulator/build/outputs/apk/debug/emulator-debug.apk"
-tool_id := "com.thelightphone.app"
+light_page_id := "com.thelightphone.lightpage"
 serial := env("ANDROID_SERIAL", "")
 adb := if serial == "" { "adb" } else { "adb -s " + serial }
 
@@ -18,20 +18,20 @@ bootstrap:
 check:
   ./gradlew check --stacktrace
 
-# Lint tool module
+# Lint light-page module
 [group('check')]
 lint:
-  ./gradlew :tool:lint --stacktrace
+  ./gradlew :light-page:lint --stacktrace
 
-# Run tool module tests
+# Run light-page module tests
 [group('check')]
 test:
-  ./gradlew :tool:test --stacktrace
+  ./gradlew :light-page:test --stacktrace
 
-# Build tool APK
+# Build Light Page APK
 [group('build')]
-build-tool:
-  ./gradlew :tool:assembleDebug --stacktrace
+build-light-page:
+  ./gradlew :light-page:assembleDebug --stacktrace
 
 # Build LightOS emulator APK
 [group('build')]
@@ -60,14 +60,14 @@ prepare-system:
   {{adb}} root
   {{adb}} remount || (echo "remount failed: try 'adb disable-verity && adb reboot' then rerun" && false)
 
-# Install tool APK on emulator/device
-[group('tool')]
-install-tool apk=tool_apk:
+# Install Light Page APK on emulator/device
+[group('light-page')]
+install-light-page apk=light_page_apk:
   {{adb}} install -r {{apk}}
 
-# Launch tool from launcher category
-[group('tool')]
-launch-tool tool=tool_id:
+# Launch Light Page from launcher category
+[group('light-page')]
+launch-light-page tool=light_page_id:
   {{adb}} shell monkey -p {{tool}} -c android.intent.category.LAUNCHER 1
 
 # Install LightOS emulator as privileged system app
@@ -108,4 +108,4 @@ setup-emulator avd=default_avd: (start-emulator-bg avd) wait-device prepare-syst
 
 # Fast local quality gate
 [group('flow')]
-dev-check: lint test build-tool
+dev-check: lint test build-light-page

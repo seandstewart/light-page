@@ -11,15 +11,15 @@ running on a different trust zone, with the keys.
 
 ## Dev
 
-Most Light SDK tools will be forks of this repo with edits to the `tool/`
+Most Light SDK tools will be forks of this repo with edits to the `light-page/`
 module. They will look like:
 
 | File                                      | Purpose                                                |
-|-------------------------------------------|--------------------------------------------------------|
-| `tool/lighttool.toml`                     | Tool id, label, versionCode/Name, declared permissions |
-| `tool/build.gradle.kts`                   | The dev's allowed dependencies (Compose, Ktor, etc.)   |
-| `tool/src/main/kotlin/**/*.kt`            | Tool source                                            |
-| `tool/src/main/res/**`, `assets/**`       | Resources and assets                                   |
+| ----------------------------------------- | ------------------------------------------------------ |
+| `light-page/lighttool.toml`               | Tool id, label, versionCode/Name, declared permissions |
+| `light-page/build.gradle.kts`             | The dev's allowed dependencies (Compose, Ktor, etc.)   |
+| `light-page/src/main/kotlin/**/*.kt`      | Tool source                                            |
+| `light-page/src/main/res/**`, `assets/**` | Resources and assets                                   |
 
 Reminder that you should **not** write/change `AndroidManifest.xml` — the plugin generates it from
 `lighttool.toml` at every Gradle build (locally and on the server). The
@@ -31,9 +31,9 @@ or `namespace` in `build.gradle.kts`.
 ```
    ┌────────────────────────┐         ┌──────────────────────────┐
    │ your tool repo         │         │  baked-in SDK source     │
-   │  tool/lighttool.toml   │         │  (pinned commit, built   │
-   │  tool/build.gradle.kts │         │   at image build time)   │
-   │  tool/src/main/...     │         └─────────────┬────────────┘
+   │  light-page/lighttool.toml   │         │  (pinned commit, built   │
+   │  light-page/build.gradle.kts │         │   at image build time)   │
+   │  light-page/src/main/...     │         └─────────────┬────────────┘
    └───────────┬────────────┘                       │
                │                                    │
                │   allowlist extraction             │
@@ -89,7 +89,7 @@ DOCKER_BUILDKIT=1 docker build \
 The Dockerfile pins `--platform=linux/amd64` on every stage because Google
 only ships AAPT2 as a Linux x86_64 binary. On Apple Silicon Docker Desktop
 will run the image under Rosetta 2 — make sure **Settings → General → "Use
-Rosetta for x86_64/amd64 emulation"** is enabled. It's still quite slow, and 
+Rosetta for x86_64/amd64 emulation"** is enabled. It's still quite slow, and
 we've had mixed results getting it to actually complete.
 
 ## Running a build
@@ -108,23 +108,23 @@ docker run --rm \
   lightphone/light-builder:<tag> \
   --git-url https://github.com/dev/their-tool \
   --git-ref <commit-sha> \
-  --tool-path tool \
+  --tool-path light-page \
   --output-dir /out
 ```
 
 ### Flags
 
-| Flag            | Meaning                                                                            |
-|-----------------|------------------------------------------------------------------------------------|
-| `--git-url`     | HTTPS URL of the dev's repo.                                                       |
-| `--git-ref`     | Branch, tag, or commit SHA to build.                                               |
-| `--tool-path`   | Relative path inside the dev's repo where their tool lives. Defaults to `tool`. Use `.` if the repo root *is* the tool dir. Validated to stay inside the repo. |
-| `--output-dir`  | Where to write artifacts inside the container. Bind-mount this from the host.      |
+| Flag           | Meaning                                                                                                                                                        |
+| -------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `--git-url`    | HTTPS URL of the dev's repo.                                                                                                                                   |
+| `--git-ref`    | Branch, tag, or commit SHA to build.                                                                                                                           |
+| `--tool-path`  | Relative path inside the dev's repo where their tool lives. Defaults to `tool`. Use `.` if the repo root _is_ the tool dir. Validated to stay inside the repo. |
+| `--output-dir` | Where to write artifacts inside the container. Bind-mount this from the host.                                                                                  |
 
 ### Env
 
-| Variable   | Required? | Purpose                                                                                                                                           |
-|------------|-----------|---------------------------------------------------------------------------------------------------------------------------------------------------|
+| Variable   | Required?                    | Purpose                                                                                                                                           |
+| ---------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GH_TOKEN` | If the dev's repo is private | Used as the password (`x-access-token` username) for the dev-repo clone. **This is temporary, we will eventually expect all repos to be public.** |
 
 ### Network
@@ -146,14 +146,14 @@ simplest answer is `chmod 777` on the host dir before `docker run`.
 
 Inside `--output-dir`:
 
-| File             | Purpose                                                                |
-|------------------|------------------------------------------------------------------------|
-| `tool-unsigned.apk` | The build artifact.                                                 |
-| `recipe.json`    | SHA-256 + every input that fed the build. The signing job must verify the dev-commit hash against this before signing. |
-| `extraction.json`| List of files the extractor accepted from the dev's repo.              |
+| File                   | Purpose                                                                                                                                                                                                       |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `tool-unsigned.apk`    | The build artifact.                                                                                                                                                                                           |
+| `recipe.json`          | SHA-256 + every input that fed the build. The signing job must verify the dev-commit hash against this before signing.                                                                                        |
+| `extraction.json`      | List of files the extractor accepted from the dev's repo.                                                                                                                                                     |
 | `extracted-source.zip` | The accepted source files themselves, zipped exactly as staged into the tool module (`build.gradle.kts`, `lighttool.toml`, `src/main/**`). Deterministic archive — same commit produces a byte-identical zip. |
-| `build.log`      | Gradle stdout/stderr, plus the extractor's log.                        |
-| `error.json`     | Present only on policy-violation failure; describes why.               |
+| `build.log`            | Gradle stdout/stderr, plus the extractor's log.                                                                                                                                                               |
+| `error.json`           | Present only on policy-violation failure; describes why.                                                                                                                                                      |
 
 `recipe.json` is the source-of-truth for what was actually built. Pass its
 `sha256` into the signing queue alongside the build ID, and have the signer
@@ -179,7 +179,7 @@ commit.
 ## TODO
 
 - **Full bit-reproducibility.** AGP, R8, ZIP packaging, and signed-block
-  layout each introduce non-determinism. The extraction-and-build pipeline here is deterministic, 
+  layout each introduce non-determinism. The extraction-and-build pipeline here is deterministic,
   but the gradle output is only "reproducible enough that diffs are inspectable".
 - **Tools should be public.** Eventually, tools will only be buildable if they are public.
 

@@ -2,7 +2,6 @@
 
 The client library that every Light tool compiles against. It re-maps/simplifies the default Android app lifecycles, hands you a Compose-friendly screen/view-model framework, and brokers communication with LightOS (or the [emulator](../emulator)) over the SDK service binding.
 
-
 ## Building blocks
 
 ### Screens
@@ -24,7 +23,7 @@ class HomeScreen(activity: SealedLightActivity)
 }
 ```
 
-- `R` is the *result type* the screen can return to whoever opened it (`Unit` if it doesn't return anything).
+- `R` is the _result type_ the screen can return to whoever opened it (`Unit` if it doesn't return anything).
 - The class annotated with `@InitialScreen` is the boot screen. The SDK scans for it at startup; excluding it (or having more than one) will fail the build.
 - `SimpleLightScreen` is the no-view-model variant if you don't need one.
 - Override `willShow`, `willHide`, `onAppPause`, `onScreenDestroy` for lifecycle hooks.
@@ -73,7 +72,7 @@ Every screen gets:
 
 ### Audio
 
-`LightAudio` provides a minimal and opinionated API for dealing with sound input and output, both at the file (`LightAudioPlayer`,  `LightAudioRecorder`) and buffer levels (`LightAudioVoice`, `LightAudioCapture`).
+`LightAudio` provides a minimal and opinionated API for dealing with sound input and output, both at the file (`LightAudioPlayer`, `LightAudioRecorder`) and buffer levels (`LightAudioVoice`, `LightAudioCapture`).
 [`:examples:audio-demo`](../../examples/audio-demo) has a complete app demo of the current functionality.
 
 Attached players follow the tool screen lifecycle. Detached players opt into
@@ -425,7 +424,7 @@ This module is wired up with the [`:plugin`](../../plugin) build plugin, which r
 
 ## Related
 
-- [`:tool`](../../tool) — the scaffold module you actually edit when building a tool.
+- [`:light-page`](../../light-page) — the scaffold module you actually edit when building a tool.
 - [`:sdk:ui`](../ui) — Compose components and theme tokens (`LightText`, `LightTheme`, etc.).
 - [`:sdk:shared`](../shared) — constants and serializable data models shared with `:sdk:server`.
 - [`:sdk:server`](../server) — the LightOS side of the connection that `:sdk:client` talks to.

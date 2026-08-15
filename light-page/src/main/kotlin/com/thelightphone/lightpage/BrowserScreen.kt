@@ -1,4 +1,4 @@
-package com.thelightphone.sample
+package com.thelightphone.lightpage
 
 import android.annotation.SuppressLint
 import android.webkit.WebChromeClient

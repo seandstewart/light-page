@@ -5,7 +5,7 @@
 - **Repo:** `seandstewart/light-page`
 - **Issue tracker:** GitHub Issues, operated via `gh` CLI.
 - **Build runner:** `just` (see `justfile`) or `./gradlew` directly.
-- **Tool module:** `tool/src/main/kotlin/com/thelightphone/sample/`
+- **Tool module:** `light-page/src/main/kotlin/com/thelightphone/lightpage/`
 - **SDK modules:** `sdk/client`, `sdk/ui`, `sdk/shared` (local composite build).
 
 ## Environment
@@ -15,7 +15,7 @@
   export JAVA_HOME=/opt/homebrew/Cellar/openjdk@17/17.0.20/libexec/openjdk.jdk/Contents/Home
   ```
 - Gradle emits many "configuration resolved during configuration time" warnings; these are noise and do not block the build.
-- `:tool` builds depend on the local `:sdk:client` module, which transitively exposes `sdk:ui`.
+- `:light-page` builds depend on the local `:sdk:client` module, which transitively exposes `sdk:ui`.
 
 ## SDK / API Quirks
 
