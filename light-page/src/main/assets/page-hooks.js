@@ -15,6 +15,28 @@
     s.textContent = css;
   };
 
+  let timer = null;
+  const schedule = () => {
+    clearTimeout(timer);
+    timer = setTimeout(() => window.__lightToolRefresh(), 250);
+  };
+
+  ["pushState", "replaceState"].forEach((fn) => {
+    const orig = history[fn];
+    history[fn] = function (...a) {
+      const r = orig.apply(this, a);
+      schedule();
+      return r;
+    };
+  });
+  addEventListener("popstate", schedule);
+  addEventListener("hashchange", schedule);
+
+  new MutationObserver(schedule).observe(document.documentElement, {
+    childList: true,
+    subtree: true,
+  });
+
   window.__lightToolRefresh = () => {
     ensureStyle("__light_base_theme", __BASE_CSS__);
   };
