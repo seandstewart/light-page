@@ -1,24 +1,16 @@
 (() => {
-  if (window.__lightToolInstalled) {
-    window.__lightToolRefresh && window.__lightToolRefresh();
+  if (window.__lightPageThemeInstalled) {
+    window.__lightPageThemeRefresh && window.__lightPageThemeRefresh();
     return;
   }
-  window.__lightToolInstalled = true;
+  window.__lightPageThemeInstalled = true;
 
-  const ensureStyle = (id, css) => {
-    let s = document.getElementById(id);
-    if (!s) {
-      s = document.createElement("style");
-      s.id = id;
-      (document.head || document.documentElement).appendChild(s);
-    }
-    s.textContent = css;
-  };
+  __ENSURE_STYLE__;
 
   let timer = null;
   const schedule = () => {
     clearTimeout(timer);
-    timer = setTimeout(() => window.__lightToolRefresh(), 250);
+    timer = setTimeout(() => window.__lightPageThemeRefresh(), 250);
   };
 
   ["pushState", "replaceState"].forEach((fn) => {
@@ -37,9 +29,9 @@
     subtree: true,
   });
 
-  window.__lightToolRefresh = () => {
+  window.__lightPageThemeRefresh = () => {
     ensureStyle("__light_base_theme", __BASE_CSS__);
   };
 
-  window.__lightToolRefresh();
+  window.__lightPageThemeRefresh();
 })();

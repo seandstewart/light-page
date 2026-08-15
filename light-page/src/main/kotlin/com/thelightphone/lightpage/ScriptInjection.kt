@@ -17,6 +17,22 @@ class ScriptInjection(assets: AssetManager) {
     private val hooksJs = assets.open("page-hooks.js")
         .bufferedReader().readText()
 
+    /**
+     * Shared helper used by both the early anti-flash injection and the boot
+     * script. Defined in one place so the two paths cannot drift apart.
+     */
+    private val ensureStyleJs = """
+        const ensureStyle = (id, css) => {
+          let s = document.getElementById(id);
+          if (!s) {
+            s = document.createElement("style");
+            s.id = id;
+            (document.head || document.documentElement).appendChild(s);
+          }
+          s.textContent = css;
+        };
+    """.trimIndent()
+
     private fun String.asJsString(): String = JSONObject.quote(this)
 
     /**
@@ -27,11 +43,8 @@ class ScriptInjection(assets: AssetManager) {
         view.evaluateJavascript(
             """
             (function(){
-              var s = document.getElementById('__light_base_theme')
-                   || document.createElement('style');
-              s.id = '__light_base_theme';
-              s.textContent = ${baseCss.asJsString()};
-              (document.head || document.documentElement).appendChild(s);
+              $ensureStyleJs
+              ensureStyle('__light_base_theme', ${baseCss.asJsString()});
             })();
             """.trimIndent(),
             null
@@ -43,7 +56,9 @@ class ScriptInjection(assets: AssetManager) {
      * itself once per page; subsequent calls trigger a refresh of the base theme.
      */
     fun injectBootScript(view: WebView) {
-        val payload = hooksJs.replace("__BASE_CSS__", baseCss.asJsString())
+        val payload = hooksJs
+            .replace("__ENSURE_STYLE__", ensureStyleJs)
+            .replace("__BASE_CSS__", baseCss.asJsString())
         view.evaluateJavascript(payload, null)
     }
 }
