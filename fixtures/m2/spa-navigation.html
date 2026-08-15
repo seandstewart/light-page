@@ -1,18 +1,18 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
- </head> <meta charset="UTF-8">
+  <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>M2 Fixture: SPA Navigation</title>
-  <style></style>
+  <style>
     body { background: #abcdef; color: #333; }
     .page { display: none; }
     .page.active { display: block; }
   </style>
 </head>
 <body>
-</body>  <h1>SPA Navigation</h1></h1>
-  <nav></nav>
+  <h1>SPA Navigation</h1>
+  <nav>
     <button data-path="/">Home</button>
     <button data-path="/about">About</button>
     <button data-path="/contact">Contact</button>
@@ -21,23 +21,23 @@
 
   <main id="app">
     <section class="page active" data-route="/">
-      <h2>Home</h</h2>2>
+      <h2>Home</h2>
       <p>This is the home view.</p>
-      <button></button>Home action</button>
+      <button>Home action</button>
     </section>
     <section class="page" data-route="/about">
-      <h2>About</h</h2>2>
+      <h2>About</h2>
       <p>This is the about view.</p>
       <input type="text" placeholder="About input">
     </section>
     <section class="page" data-route="/contact">
-      <h2>Contact</h2></h2>
+      <h2>Contact</h2>
       <p>This is the contact view.</p>
-      <select></select><option>A</option><option>B</option></select>
+      <select><option>A</option><option>B</option></select>
     </section>
   </main>
 
-  <script></script>
+  <script>
     const pages = document.querySelectorAll('.page');
     function show(path) {
       pages.forEach(p => p.classList.toggle('active', p.dataset.route === path));

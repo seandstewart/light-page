@@ -1,26 +1,26 @@
 <!DOCTYPE html>
 <html lang="en">
-<head></head>
+<head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>M2 Fixture: Delayed Render</title>
   <style>
-</style>    body { background: #abcdef; color: #333; }
+    body { background: #abcdef; color: #333; }
   </style>
 </head>
 <body>
- </body> <h1></h1>Delayed Render</h1>
-  <p></p>Content below is injected 2 seconds after the initial page load.</p>
+  <h1>Delayed Render</h1>
+  <p>Content below is injected 2 seconds after the initial page load.</p>
   <div id="container"></div>
 
   <script>
-   </script> setTimeout(() => {
+    setTimeout(() => {
       const container = document.getElementById('container');
       container.innerHTML = `
         <div class="delayed-content">
-          <h2>Delayed heading</h2></h2>
+          <h2>Delayed heading</h2>
           <p>This paragraph was injected late.</p>
-          <button>Delayed</button> button</button>
+          <button>Delayed button</button>
           <input type="text" placeholder="Delayed input">
         </div>
       `;

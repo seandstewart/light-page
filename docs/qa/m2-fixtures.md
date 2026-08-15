@@ -46,4 +46,4 @@ All fixtures live in `fixtures/m2/` and are designed to be served over HTTP (the
 
 ## Live run status
 
-Live visual QA on the emulator/device was not executed in this agent session. The fixtures and pass criteria are ready for the next manual QA pass.
+Live visual QA on the emulator/device was not executed in this agent session. The fixtures have been rewritten for syntactic correctness and validated with a basic tag-balance check. The fixtures and pass criteria are ready for the next manual QA pass.
