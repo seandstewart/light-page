@@ -1,5 +1,15 @@
 package com.thelightphone.lightpage
 
+sealed interface UrlEditorMode {
+    data object Add : UrlEditorMode
+    data class Edit(val index: Int) : UrlEditorMode
+}
+
+data class WebInputEditorState(
+    val value: String,
+    val label: String,
+)
+
 data class BrowserUiState(
     val requestedUrl: String,
     val committedUrl: String? = null,
@@ -8,7 +18,15 @@ data class BrowserUiState(
     val canGoForward: Boolean = false,
     val readerRequested: Boolean = true,
     val readerApplied: Boolean = false,
+    val cssInjectionEnabled: Boolean = true,
+    val themeInverted: Boolean = false,
+    val menuVisible: Boolean = false,
+    val urlDrawerVisible: Boolean = false,
     val urlEditorVisible: Boolean = false,
+    val urlEditorMode: UrlEditorMode = UrlEditorMode.Add,
+    val urlEditorInitialValue: String = "",
+    val webInputEditor: WebInputEditorState? = null,
+    val recentUrls: List<String> = emptyList(),
     val error: BrowserError? = null
 )
 
@@ -18,7 +36,8 @@ data class WebStateUpdate(
     val canGoBack: Boolean = false,
     val canGoForward: Boolean = false,
     val readerApplied: Boolean = false,
-    val error: BrowserError? = null
+    val error: BrowserError? = null,
+    val clearError: Boolean = false
 )
 
 sealed interface BrowserError {
