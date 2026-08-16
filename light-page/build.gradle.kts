@@ -63,6 +63,7 @@ kotlin {
 
 dependencies {
     implementation(project(":sdk:client"))
+    implementation(libs.androidx.lifecycle.viewmodel.compose)
     testImplementation(libs.kotlin.test)
     testImplementation("org.junit.jupiter:junit-jupiter:5.10.2")
     testImplementation("io.mockk:mockk:1.13.8")
