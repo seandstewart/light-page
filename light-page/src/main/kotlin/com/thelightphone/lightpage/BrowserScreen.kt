@@ -82,6 +82,11 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
         LaunchedEffect(isSystemInDarkTheme) {
             if (isSystemInDarkTheme) LightThemeController.setDarkTheme()
             else LightThemeController.setLightTheme()
+            webView?.evaluateJavascript(
+                "window.__lightSystemDarkMode = $isSystemInDarkTheme; " +
+                        "window.__lightApplySystemTheme && window.__lightApplySystemTheme()",
+                null
+            )
         }
 
         // Tracks the last URL we explicitly loaded so normal link navigation
@@ -139,6 +144,11 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                                 onState = viewModel::onWebState
                             )
                             loadUrl(state.requestedUrl)
+                            evaluateJavascript(
+                                "window.__lightSystemDarkMode = $isSystemInDarkTheme; " +
+                                        "window.__lightApplySystemTheme && window.__lightApplySystemTheme()",
+                                null
+                            )
                             lastLoadedUrl = state.requestedUrl
                             webView = this
                         }

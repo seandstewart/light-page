@@ -9,6 +9,14 @@
   --light-reader-line-height: 1.6;
 }
 
+html.__light_dark_mode {
+  color-scheme: dark;
+  --light-reader-bg: #000000;
+  --light-reader-fg: #ffffff;
+  --light-reader-muted: #aaaaaa;
+  --light-reader-border: #ffffff;
+}
+
 #__light_reader_root {
   background: var(--light-reader-bg);
   color: var(--light-reader-fg);

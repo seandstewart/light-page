@@ -153,3 +153,18 @@ test("reader skips ineligible pages", () => {
     close();
   }
 });
+
+test("system dark mode applies dark theme class", () => {
+  const { window, document, close } = bootHooks();
+  try {
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), false, "default should be light");
+    window.__lightSystemDarkMode = true;
+    window.__lightApplySystemTheme();
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), true, "dark class should be applied");
+    window.__lightSystemDarkMode = false;
+    window.__lightApplySystemTheme();
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), false, "dark class should be removed");
+  } finally {
+    close();
+  }
+});

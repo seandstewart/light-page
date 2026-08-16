@@ -8,6 +8,15 @@
   --light-control-height: 48px;
 }
 
+html.__light_dark_mode {
+  color-scheme: dark;
+  --light-bg: #000000;
+  --light-fg: #ffffff;
+  --light-muted: #aaaaaa;
+  --light-border: #ffffff;
+  --light-surface: #333333;
+}
+
 html,
 body {
   background: var(--light-bg) !important;

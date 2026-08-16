@@ -254,7 +254,15 @@
     else restoreOriginal();
   };
 
+  const applySystemTheme = () => {
+    const isDark = !!window.__lightSystemDarkMode;
+    document.documentElement.classList.toggle("__light_dark_mode", isDark);
+  };
+
+  window.__lightApplySystemTheme = applySystemTheme;
+
   window.__lightToolRefresh = () => {
+    applySystemTheme();
     ensureStyle("__light_base_theme", __BASE_CSS__);
     ensureStyle("__light_reader_theme", __READER_CSS__);
     if (window.__lightReaderEnabled) {
