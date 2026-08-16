@@ -78,12 +78,16 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
         val state by viewModel.uiState.collectAsState()
 
         // Keep the Light theme in sync with the Android system dark/light setting.
+        // Note: the device/QA convention inverts the standard mapping, so system
+        // dark mode selects the LightOS light theme and system light mode selects
+        // the LightOS dark theme.
         val isSystemInDarkTheme = isSystemInDarkTheme()
-        LaunchedEffect(isSystemInDarkTheme) {
-            if (isSystemInDarkTheme) LightThemeController.setDarkTheme()
-            else LightThemeController.setLightTheme()
+        val useLightTheme = isSystemInDarkTheme
+        LaunchedEffect(useLightTheme) {
+            if (useLightTheme) LightThemeController.setLightTheme()
+            else LightThemeController.setDarkTheme()
             webView?.evaluateJavascript(
-                "window.__lightSystemDarkMode = $isSystemInDarkTheme; " +
+                "window.__lightUseDarkTheme = ${!useLightTheme}; " +
                         "window.__lightApplySystemTheme && window.__lightApplySystemTheme()",
                 null
             )
@@ -145,7 +149,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                             )
                             loadUrl(state.requestedUrl)
                             evaluateJavascript(
-                                "window.__lightSystemDarkMode = $isSystemInDarkTheme; " +
+                                "window.__lightUseDarkTheme = ${!useLightTheme}; " +
                                         "window.__lightApplySystemTheme && window.__lightApplySystemTheme()",
                                 null
                             )

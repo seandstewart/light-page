@@ -255,8 +255,8 @@
   };
 
   const applySystemTheme = () => {
-    const isDark = !!window.__lightSystemDarkMode;
-    document.documentElement.classList.toggle("__light_dark_mode", isDark);
+    const useDark = !!window.__lightUseDarkTheme;
+    document.documentElement.classList.toggle("__light_dark_mode", useDark);
   };
 
   window.__lightApplySystemTheme = applySystemTheme;

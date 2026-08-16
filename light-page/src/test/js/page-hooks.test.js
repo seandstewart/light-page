@@ -154,14 +154,16 @@ test("reader skips ineligible pages", () => {
   }
 });
 
-test("system dark mode applies dark theme class", () => {
+test("system theme applies correct CSS class", () => {
   const { window, document, close } = bootHooks();
   try {
+    // The device convention inverts the mapping: system dark mode uses the
+    // LightOS light theme, which corresponds to no dark CSS class.
     assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), false, "default should be light");
-    window.__lightSystemDarkMode = true;
+    window.__lightUseDarkTheme = true;
     window.__lightApplySystemTheme();
     assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), true, "dark class should be applied");
-    window.__lightSystemDarkMode = false;
+    window.__lightUseDarkTheme = false;
     window.__lightApplySystemTheme();
     assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), false, "dark class should be removed");
   } finally {
