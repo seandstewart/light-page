@@ -13,12 +13,16 @@ import org.json.JSONObject
 class ScriptInjection(
     private val baseCss: String,
     private val readerCss: String,
+    private val readabilityJs: String,
+    private val purifyJs: String,
     private val hooksJs: String
 ) {
 
     constructor(assets: AssetManager) : this(
         baseCss = assets.open("light-page-theme.css").bufferedReader().readText(),
         readerCss = assets.open("reader-theme.css").bufferedReader().readText(),
+        readabilityJs = assets.open("readability.js").bufferedReader().readText(),
+        purifyJs = assets.open("purify.js").bufferedReader().readText(),
         hooksJs = assets.open("page-hooks.js").bufferedReader().readText()
     )
 
@@ -43,17 +47,30 @@ class ScriptInjection(
     /**
      * Injects the base theme style into the page early, before the first paint.
      * Idempotent: reuses the existing style element if it is already present.
+     * Skipped entirely when CSS injection is disabled by the user.
      */
     fun injectBaseTheme(view: WebView) {
         view.evaluateJavascript(
             """
             (function(){
+              if (window.__lightCssInjectionEnabled === false) return;
               $ensureStyleJs
               ensureStyle('__light_base_theme', ${baseCss.asJsString()});
             })();
             """.trimIndent(),
             null
         )
+    }
+
+    /**
+     * Injects the Readability.js and DOMPurify libraries required by the page
+     * hooks. Idempotent in the sense that re-evaluating is harmless, but the
+     * libraries define themselves on `window` and do not need to be reloaded on
+     * every refresh.
+     */
+    fun injectLibraries(view: WebView) {
+        view.evaluateJavascript(readabilityJs, null)
+        view.evaluateJavascript(purifyJs, null)
     }
 
     /**

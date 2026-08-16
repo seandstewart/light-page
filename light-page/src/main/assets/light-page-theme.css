@@ -18,12 +18,6 @@ html.__light_dark_mode {
   --light-surface: #333333;
 }
 
-html {
-  transform: scale(var(--light-scale));
-  transform-origin: top left;
-  width: calc(100% / var(--light-scale));
-}
-
 html,
 body {
   background: var(--light-bg) !important;

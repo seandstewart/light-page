@@ -3,9 +3,12 @@
   "version": "1.0.0",
   "private": true,
   "scripts": {
-    "test": "node --test page-hooks.test.js"
+    "test": "node --test page-hooks.test.js",
+    "copy-assets": "cp node_modules/@mozilla/readability/Readability.js ../../main/assets/readability.js && cp node_modules/dompurify/dist/purify.min.js ../../main/assets/purify.js"
   },
   "devDependencies": {
-    "jsdom": "^24.0.0"
+    "jsdom": "^24.0.0",
+    "@mozilla/readability": "0.5.0",
+    "dompurify": "3.4.13"
   }
 }

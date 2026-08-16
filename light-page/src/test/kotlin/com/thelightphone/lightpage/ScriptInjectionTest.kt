@@ -28,7 +28,13 @@ class ScriptInjectionTest {
 
     @Test
     fun `injectBaseTheme evaluates a script that references the base CSS`() {
-        val injection = ScriptInjection(baseCss = "body{color:red}", readerCss = "", hooksJs = "")
+        val injection = ScriptInjection(
+            baseCss = "body{color:red}",
+            readerCss = "",
+            readabilityJs = "",
+            purifyJs = "",
+            hooksJs = ""
+        )
         val view = mockk<WebView>(relaxed = true)
 
         injection.injectBaseTheme(view)
@@ -41,10 +47,50 @@ class ScriptInjectionTest {
     }
 
     @Test
+    fun `injectBaseTheme skips injection when CSS injection is disabled`() {
+        val injection = ScriptInjection(
+            baseCss = "body{color:red}",
+            readerCss = "",
+            readabilityJs = "",
+            purifyJs = "",
+            hooksJs = ""
+        )
+        val view = mockk<WebView>(relaxed = true)
+
+        injection.injectBaseTheme(view)
+
+        val scriptSlot = slot<String>()
+        verify { view.evaluateJavascript(capture(scriptSlot), null) }
+        val script = scriptSlot.captured
+        assertTrue(script.contains("__lightCssInjectionEnabled === false"))
+    }
+
+    @Test
+    fun `injectLibraries evaluates the Readability and DOMPurify scripts`() {
+        val injection = ScriptInjection(
+            baseCss = "",
+            readerCss = "",
+            readabilityJs = "window.__readabilityLoaded = true;",
+            purifyJs = "window.__purifyLoaded = true;",
+            hooksJs = ""
+        )
+        val view = mockk<WebView>(relaxed = true)
+
+        injection.injectLibraries(view)
+
+        val scripts = mutableListOf<String>()
+        verify(atLeast = 2) { view.evaluateJavascript(capture(scripts), null) }
+        assertTrue(scripts.any { it.contains("__readabilityLoaded") }, "Readability script should be evaluated")
+        assertTrue(scripts.any { it.contains("__purifyLoaded") }, "DOMPurify script should be evaluated")
+    }
+
+    @Test
     fun `injectBootScript replaces placeholders and evaluates the payload`() {
         val injection = ScriptInjection(
             baseCss = "body{color:black}",
             readerCss = "#root{color:black}",
+            readabilityJs = "",
+            purifyJs = "",
             hooksJs = "__ENSURE_STYLE__; const css = __BASE_CSS__; const r = __READER_CSS__;"
         )
         val view = mockk<WebView>(relaxed = true)
@@ -59,5 +105,26 @@ class ScriptInjectionTest {
         assertTrue(!script.contains("__ENSURE_STYLE__"), "placeholder should be replaced")
         assertTrue(!script.contains("__BASE_CSS__"), "placeholder should be replaced")
         assertTrue(!script.contains("__READER_CSS__"), "reader CSS placeholder should be replaced")
+    }
+
+    @Test
+    fun `injectBootScript replaces all occurrences of placeholders`() {
+        val injection = ScriptInjection(
+            baseCss = "base",
+            readerCss = "reader",
+            readabilityJs = "",
+            purifyJs = "",
+            hooksJs = "__BASE_CSS__; __BASE_CSS__; __READER_CSS__; __READER_CSS__; __ENSURE_STYLE__; __ENSURE_STYLE__;"
+        )
+        val view = mockk<WebView>(relaxed = true)
+
+        injection.injectBootScript(view)
+
+        val scriptSlot = slot<String>()
+        verify { view.evaluateJavascript(capture(scriptSlot), null) }
+        val script = scriptSlot.captured
+        assertTrue(!script.contains("__BASE_CSS__"), "all base CSS placeholders should be replaced")
+        assertTrue(!script.contains("__READER_CSS__"), "all reader CSS placeholders should be replaced")
+        assertTrue(!script.contains("__ENSURE_STYLE__"), "all ensureStyle placeholders should be replaced")
     }
 }

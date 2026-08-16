@@ -3,12 +3,12 @@ package com.thelightphone.lightpage
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.http.SslError
+import android.webkit.RenderProcessGoneDetail
 import android.webkit.SslErrorHandler
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebResourceResponse
 import android.webkit.WebView
-import android.webkit.RenderProcessGoneDetail
 import android.webkit.WebViewClient
 
 /**
@@ -17,6 +17,9 @@ import android.webkit.WebViewClient
  * Scheme navigations are filtered through [BrowserPolicy]. TLS failures are
  * cancelled and surfaced as [BrowserError.Tls]. Blocked schemes report an
  * exact `Unsupported scheme (<scheme>)` status.
+ *
+ * Errors are cleared only at the start of a new navigation so that blank pages
+ * do not overwrite real errors when [onPageFinished] fires.
  */
 class LightWebViewClient(
     private val injection: ScriptInjection,
@@ -24,12 +27,11 @@ class LightWebViewClient(
 ) : WebViewClient() {
 
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
-        super.onPageStarted(view, url, favicon)
         onState(
             WebStateUpdate(
                 url = url,
                 loading = true,
-                error = null,
+                clearError = true,
                 canGoBack = view.canGoBack(),
                 canGoForward = view.canGoForward()
             )
@@ -37,12 +39,11 @@ class LightWebViewClient(
     }
 
     override fun onPageCommitVisible(view: WebView, url: String?) {
-        super.onPageCommitVisible(view, url)
         injection.injectBaseTheme(view)
     }
 
     override fun onPageFinished(view: WebView, url: String?) {
-        super.onPageFinished(view, url)
+        injection.injectLibraries(view)
         injection.injectBootScript(view)
         onState(
             WebStateUpdate(
@@ -55,7 +56,6 @@ class LightWebViewClient(
     }
 
     override fun doUpdateVisitedHistory(view: WebView, url: String?, isReload: Boolean) {
-        super.doUpdateVisitedHistory(view, url, isReload)
         onState(
             WebStateUpdate(
                 url = url,

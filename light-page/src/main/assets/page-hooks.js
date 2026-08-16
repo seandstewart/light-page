@@ -4,8 +4,11 @@
     return;
   }
   window.__lightToolInstalled = true;
-  window.__lightReaderEnabled = true;
   window.__lightReaderApplied = false;
+
+  if (typeof window.__lightReaderEnabled === "undefined") window.__lightReaderEnabled = true;
+  if (typeof window.__lightCssInjectionEnabled === "undefined") window.__lightCssInjectionEnabled = true;
+  if (typeof window.__lightUseDarkTheme === "undefined") window.__lightUseDarkTheme = false;
 
   __ENSURE_STYLE__;
 
@@ -17,7 +20,7 @@
   let timer = null;
   const schedule = () => {
     clearTimeout(timer);
-    timer = setTimeout(() => window.__lightToolRefresh(), 250);
+    timer = setTimeout(() => window.__lightToolRefresh(), 500);
   };
 
   ["pushState", "replaceState"].forEach((fn) => {
@@ -105,110 +108,12 @@
     return textLength >= MIN_PROSE_LENGTH && paragraphCount >= MIN_PARAGRAPHS;
   };
 
-  const scoreCandidate = (el) => {
-    if (!el) return -1;
-    const text = (el.innerText || el.textContent || "").trim();
-    if (text.length < 200) return -1;
-    const paragraphs = el.querySelectorAll("p").length;
-    const links = el.querySelectorAll("a").length;
-    const linkRatio = text.length > 0 ? links / text.length : 0;
-    const headings = el.querySelectorAll("h1, h2, h3, h4, h5, h6").length;
-    return text.length + paragraphs * 60 + headings * 120 - linkRatio * 2000;
-  };
-
-  const findBestCandidate = () => {
-    const selectors = [
-      "article",
-      "main",
-      '[role="main"]',
-      '.content[data-testid="tweetDetail"]',
-      ".content",
-      ".post",
-      ".entry",
-      ".article",
-      "[itemprop='articleBody']",
-    ];
-    let best = null;
-    let bestScore = -1;
-    for (const selector of selectors) {
-      const el = document.querySelector(selector);
-      if (el) {
-        const score = scoreCandidate(el);
-        if (score > bestScore) {
-          best = el;
-          bestScore = score;
-        }
-      }
-    }
-    if (!best || bestScore < 100) {
-      const candidates = document.querySelectorAll("div, section");
-      for (let i = 0; i < candidates.length; i++) {
-        const score = scoreCandidate(candidates[i]);
-        if (score > bestScore) {
-          best = candidates[i];
-          bestScore = score;
-        }
-      }
-    }
-    return best || document.body;
-  };
-
-  const sanitize = (clone) => {
-    const removeSelectors = [
-      "script",
-      "style",
-      "noscript",
-      "iframe",
-      "canvas",
-      "nav",
-      "header",
-      "footer",
-      "aside",
-      '[role="navigation"]',
-      '[role="banner"]',
-      '[role="complementary"]',
-      ".ad",
-      ".advertisement",
-      ".sidebar",
-      ".comments",
-      ".comment",
-      ".related",
-      ".share",
-      ".social",
-      ".newsletter",
-      ".subscribe",
-      ".popup",
-      ".modal",
-      ".cookie",
-      ".consent",
-    ];
-    removeSelectors.forEach((sel) => {
-      clone.querySelectorAll(sel).forEach((el) => el.remove());
-    });
-    // Remove inline event handlers that could interfere with the reader. Keep
-    // onload/onerror on media elements so image lazy-loading and error reporting
-    // continue to work.
-    clone.querySelectorAll("*").forEach((el) => {
-      el.removeAttribute("onclick");
-      const tag = el.tagName.toLowerCase();
-      if (tag !== "img" && tag !== "video" && tag !== "audio" && tag !== "picture") {
-        el.removeAttribute("onload");
-        el.removeAttribute("onerror");
-      }
-      // Strip inline styles from non-media elements; media sizing styles are
-      // preserved because the reader CSS limits max-width anyway.
-      if (tag !== "img" && tag !== "video" && tag !== "audio" && tag !== "picture") {
-        el.removeAttribute("style");
-      }
-    });
-    // Remove empty text containers that carry no semantic content. Divs and
-    // sections are kept because they often provide layout spacing.
-    clone.querySelectorAll("p, span").forEach((el) => {
-      if (!el.textContent.trim() && !el.querySelector("img, video, svg, table, iframe, canvas, audio, picture")) {
-        el.remove();
-      }
-    });
-    return clone;
+  const hasSignificantInteractiveContent = (html) => {
+    const temp = document.createElement("div");
+    temp.innerHTML = html;
+    const paragraphs = temp.querySelectorAll("p").length;
+    const interactive = temp.querySelectorAll("form, input, textarea, select, button").length;
+    return interactive > 0 && interactive >= paragraphs;
   };
 
   const reportReaderApplied = () => {
@@ -224,20 +129,70 @@
       return;
     }
     restoreOriginal();
-    const candidate = findBestCandidate();
-    if (!candidate || candidate === document.body) {
-      restoreOriginal();
+
+    if (typeof Readability === "undefined" || typeof DOMPurify === "undefined") {
+      reportReaderApplied();
       return;
     }
-    const clone = candidate.cloneNode(true);
-    sanitize(clone);
-    const root = document.createElement("div");
-    root.id = READER_ROOT_ID;
-    root.appendChild(clone);
-    document.body.appendChild(root);
-    document.documentElement.classList.add(HIDE_CLASS);
-    window.__lightReaderApplied = true;
-    reportReaderApplied();
+
+    try {
+      const article = new Readability(document.cloneNode(true)).parse();
+      if (!article || !article.content || article.length < MIN_PROSE_LENGTH) {
+        reportReaderApplied();
+        return;
+      }
+
+      const clean = DOMPurify.sanitize(article.content, {
+        ALLOWED_TAGS: [
+          "h1", "h2", "h3", "h4", "h5", "h6",
+          "p", "div", "span", "a", "ul", "ol", "li",
+          "strong", "b", "em", "i", "blockquote", "pre", "code", "hr", "br",
+          "img", "figure", "figcaption", "picture", "source",
+          "table", "thead", "tbody", "tr", "th", "td",
+          "sup", "sub", "small", "dl", "dt", "dd"
+        ],
+        ALLOWED_ATTR: ["href", "src", "alt", "title", "id", "class", "name", "dir", "lang", "colspan", "rowspan", "start", "type", "value"],
+        ALLOW_DATA_ATTR: false
+      });
+
+      const temp = document.createElement("div");
+      temp.innerHTML = clean;
+      const cleanText = (temp.textContent || "").trim();
+      if (cleanText.length < MIN_PROSE_LENGTH || hasSignificantInteractiveContent(clean)) {
+        reportReaderApplied();
+        return;
+      }
+
+      const root = document.createElement("div");
+      root.id = READER_ROOT_ID;
+
+      const header = document.createElement("div");
+      header.className = "__light_reader_header";
+
+      const title = document.createElement("h1");
+      title.textContent = article.title || document.title;
+      header.appendChild(title);
+
+      if (article.byline) {
+        const byline = document.createElement("p");
+        byline.className = "__light_reader_byline";
+        byline.textContent = article.byline;
+        header.appendChild(byline);
+      }
+
+      const body = document.createElement("div");
+      body.className = "__light_reader_body";
+      body.innerHTML = clean;
+
+      root.appendChild(header);
+      root.appendChild(body);
+      document.body.appendChild(root);
+      document.documentElement.classList.add(HIDE_CLASS);
+      window.__lightReaderApplied = true;
+      reportReaderApplied();
+    } catch (e) {
+      restoreOriginal();
+    }
   };
 
   const restoreOriginal = () => {
@@ -261,11 +216,26 @@
 
   window.__lightApplySystemTheme = applySystemTheme;
 
+  window.__lightSetCssInjectionEnabled = (on) => {
+    window.__lightCssInjectionEnabled = !!on;
+    const base = document.getElementById("__light_base_theme");
+    const reader = document.getElementById("__light_reader_theme");
+    if (on) {
+      if (!base) ensureStyle("__light_base_theme", __BASE_CSS__);
+      if (!reader) ensureStyle("__light_reader_theme", __READER_CSS__);
+    } else {
+      if (base) base.remove();
+      if (reader) reader.remove();
+    }
+  };
+
   window.__lightToolRefresh = () => {
     applySystemTheme();
-    ensureStyle("__light_base_theme", __BASE_CSS__);
-    ensureStyle("__light_reader_theme", __READER_CSS__);
-    if (window.__lightReaderEnabled) {
+    if (window.__lightCssInjectionEnabled) {
+      ensureStyle("__light_base_theme", __BASE_CSS__);
+      ensureStyle("__light_reader_theme", __READER_CSS__);
+    }
+    if (window.__lightCssInjectionEnabled && window.__lightReaderEnabled) {
       applyReaderMode();
     } else {
       restoreOriginal();
@@ -274,6 +244,7 @@
 
   // Conservative open-shadow-root theming pass (M2.7).
   const themeShadowRoots = () => {
+    if (!window.__lightCssInjectionEnabled) return;
     try {
       const all = document.querySelectorAll("*");
       for (let i = 0; i < all.length; i++) {
@@ -298,6 +269,81 @@
   window.__lightToolRefresh = () => {
     originalRefresh();
     themeShadowRoots();
+  };
+
+  let activeInputElement = null;
+
+  const isTextInput = (el) => {
+    const tag = el.tagName;
+    if (tag === "TEXTAREA") return true;
+    if (tag === "INPUT") {
+      const type = el.type || "text";
+      const skip = [
+        "button", "submit", "reset", "image", "hidden", "checkbox", "radio",
+        "file", "color", "date", "datetime-local", "month", "week", "time", "range"
+      ];
+      return !skip.includes(type.toLowerCase());
+    }
+    if (el.isContentEditable || el.getAttribute("contenteditable") === "true") return true;
+    return false;
+  };
+
+  const getInputLabel = (el) => {
+    let label = el.placeholder || "";
+    if (!label && el.id) {
+      const safeId = typeof CSS !== "undefined" && CSS.escape ? CSS.escape(el.id) : el.id.replace(/"/g, '\\"');
+      const lab = document.querySelector('label[for="' + safeId + '"]');
+      if (lab) label = lab.textContent || "";
+    }
+    if (!label) {
+      const aria = el.getAttribute("aria-label");
+      if (aria) label = aria;
+    }
+    return label.trim();
+  };
+
+  const getInputValue = (el) => {
+    if (el.isContentEditable || el.getAttribute("contenteditable") === "true") {
+      return el.innerText || el.textContent || "";
+    }
+    return el.value || "";
+  };
+
+  const setInputValue = (el, value) => {
+    if (el.isContentEditable || el.getAttribute("contenteditable") === "true") {
+      el.innerText = value;
+      el.textContent = value;
+    } else {
+      el.value = value;
+    }
+    el.dispatchEvent(new Event("input", { bubbles: true }));
+    el.dispatchEvent(new Event("change", { bubbles: true }));
+    el.blur();
+  };
+
+  document.addEventListener("focusin", (e) => {
+    const el = e.target;
+    if (!isTextInput(el)) return;
+    if (!window.__lightInputBridge || !window.__lightInputBridge.onFocus) return;
+    if (activeInputElement) return;
+    activeInputElement = el;
+    const value = getInputValue(el);
+    const label = getInputLabel(el);
+    el.blur();
+    window.__lightInputBridge.onFocus(value, label);
+  });
+
+  window.__lightSetInputValue = (value) => {
+    if (!activeInputElement) return;
+    setInputValue(activeInputElement, value);
+    activeInputElement = null;
+  };
+
+  window.__lightCancelInput = () => {
+    if (activeInputElement) {
+      activeInputElement.blur();
+      activeInputElement = null;
+    }
   };
 
   window.__lightToolRefresh();

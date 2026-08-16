@@ -3,14 +3,20 @@ const path = require("path");
 const assert = require("node:assert");
 const test = require("node:test");
 const { JSDOM } = require("jsdom");
+const { Readability } = require("@mozilla/readability");
+const createDOMPurify = require("dompurify");
 
 const HOOKS_PATH = path.join(__dirname, "../../main/assets/page-hooks.js");
 const BASE_CSS_PATH = path.join(__dirname, "../../main/assets/light-page-theme.css");
 const READER_CSS_PATH = path.join(__dirname, "../../main/assets/reader-theme.css");
+const READABILITY_PATH = path.join(__dirname, "../../main/assets/readability.js");
+const PURIFY_PATH = path.join(__dirname, "../../main/assets/purify.js");
 
 const baseCss = fs.readFileSync(BASE_CSS_PATH, "utf8");
 const readerCss = fs.readFileSync(READER_CSS_PATH, "utf8");
 const hooksTemplate = fs.readFileSync(HOOKS_PATH, "utf8");
+const readabilityJs = fs.readFileSync(READABILITY_PATH, "utf8");
+const purifyJs = fs.readFileSync(PURIFY_PATH, "utf8");
 
 const ensureStyleJs = `
 const ensureStyle = (id, css) => {
@@ -32,10 +38,14 @@ function bootHooks(html = "<!DOCTYPE html><html><head></head><body></body></html
   const window = dom.window;
   const document = window.document;
 
+  window.eval(readabilityJs);
+  window.eval(purifyJs);
+  window.DOMPurify = createDOMPurify(window);
+
   const payload = hooksTemplate
-    .replace("__ENSURE_STYLE__", ensureStyleJs)
-    .replace("__BASE_CSS__", JSON.stringify(baseCss))
-    .replace("__READER_CSS__", JSON.stringify(readerCss));
+    .replaceAll("__ENSURE_STYLE__", ensureStyleJs)
+    .replaceAll("__BASE_CSS__", JSON.stringify(baseCss))
+    .replaceAll("__READER_CSS__", JSON.stringify(readerCss));
 
   window.eval(payload);
 
@@ -63,11 +73,14 @@ test("install is idempotent", () => {
       originalRefresh();
     };
 
+    window.eval(readabilityJs);
+    window.eval(purifyJs);
+    window.DOMPurify = createDOMPurify(window);
     window.eval(
       hooksTemplate
-        .replace("__ENSURE_STYLE__", ensureStyleJs)
-        .replace("__BASE_CSS__", JSON.stringify(baseCss))
-        .replace("__READER_CSS__", JSON.stringify(readerCss))
+        .replaceAll("__ENSURE_STYLE__", ensureStyleJs)
+        .replaceAll("__BASE_CSS__", JSON.stringify(baseCss))
+        .replaceAll("__READER_CSS__", JSON.stringify(readerCss))
     );
 
     assert.strictEqual(window.__lightToolInstalled, true, "flag should still be true");
@@ -100,7 +113,7 @@ function debounceTest(name, act) {
       } finally {
         close();
       }
-    }, 300);
+    }, 600);
   });
 }
 
@@ -119,10 +132,37 @@ debounceTest("MutationObserver schedules a refresh on late DOM changes", (window
   document.body.appendChild(div);
 });
 
+test("reader and CSS injection are enabled by default", () => {
+  const { window, close } = bootHooks();
+  try {
+    assert.strictEqual(window.__lightReaderEnabled, true, "reader should be enabled by default");
+    assert.strictEqual(window.__lightCssInjectionEnabled, true, "CSS injection should be enabled by default");
+  } finally {
+    close();
+  }
+});
+
+test("CSS injection can be toggled", () => {
+  const { window, document, close } = bootHooks();
+  try {
+    assert.ok(document.getElementById("__light_base_theme"), "base theme should be present by default");
+    window.__lightSetCssInjectionEnabled(false);
+    assert.strictEqual(window.__lightCssInjectionEnabled, false, "CSS injection flag should be off");
+    assert.ok(!document.getElementById("__light_base_theme"), "base theme should be removed");
+    assert.ok(!document.getElementById("__light_reader_theme"), "reader theme should be removed");
+    window.__lightSetCssInjectionEnabled(true);
+    assert.strictEqual(window.__lightCssInjectionEnabled, true, "CSS injection flag should be on");
+    assert.ok(document.getElementById("__light_base_theme"), "base theme should be restored");
+    assert.ok(document.getElementById("__light_reader_theme"), "reader theme should be restored");
+  } finally {
+    close();
+  }
+});
+
 test("reader is enabled by default and can be toggled", () => {
   const html = `
     <!DOCTYPE html>
-    <html><head></head><body>
+    <html><head><title>Test</title></head><body>
       <article>
         <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
         <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
@@ -144,6 +184,42 @@ test("reader is enabled by default and can be toggled", () => {
   }
 });
 
+test("reader extracts article content and drops page noise", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Site Title</title></head><body>
+      <header><h1>Site Brand</h1><nav>Home | About</nav></header>
+      <article>
+        <h1>Real Article Headline</h1>
+        <p class="byline">By Jane Doe</p>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+      <aside class="sidebar">Ad</aside>
+      <footer>Copyright</footer>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    const root = document.getElementById("__light_reader_root");
+    assert.ok(root, "reader root should be created");
+
+    const text = root.textContent;
+    assert.ok(text.includes("Real Article Headline"), "reader should include the article headline");
+    assert.ok(text.includes("Lorem ipsum dolor"), "reader should include article body");
+    assert.ok(!text.includes("Site Brand"), "reader should exclude site header noise");
+    assert.ok(!text.includes("Ad"), "reader should exclude sidebar ads");
+    assert.ok(!text.includes("Copyright"), "reader should exclude footer noise");
+
+    const title = root.querySelector(".__light_reader_header h1");
+    assert.ok(title, "reader should render a title element");
+    assert.ok(title.textContent.length > 0, "title should be non-empty");
+  } finally {
+    close();
+  }
+});
+
 test("reader skips ineligible pages", () => {
   const html = `<!DOCTYPE html><html><head></head><body><p>short</p></body></html>`;
   const { window, document, close } = bootHooks(html, "https://example.com/search");
@@ -154,11 +230,84 @@ test("reader skips ineligible pages", () => {
   }
 });
 
+test("reader skips pages with forms", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Contact</title></head><body>
+      <h1>Contact Us</h1>
+      <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+      <form>
+        <label>Name <input type="text"></label>
+        <label>Email <input type="email"></label>
+        <label>Message <textarea></textarea></label>
+        <button type="submit">Send</button>
+      </form>
+    </body></html>
+  `;
+  const { document, close } = bootHooks(html);
+  try {
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "form page should not get reader");
+    assert.ok(!document.getElementById("__light_reader_root"), "reader root should not be created");
+  } finally {
+    close();
+  }
+});
+
+test("reader skips empty SPA shells", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>App</title></head><body>
+      <div id="root"></div>
+    </body></html>
+  `;
+  const { document, close } = bootHooks(html, "https://example.com/app");
+  try {
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "empty SPA shell should not get reader");
+    assert.ok(!document.getElementById("__light_reader_root"), "reader root should not be created");
+  } finally {
+    close();
+  }
+});
+
+test("input bridge forwards focus and submit", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Form</title></head><body>
+      <form>
+        <label for="name">Name</label>
+        <input id="name" type="text" value="initial">
+      </form>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    let receivedValue = null;
+    let receivedLabel = null;
+    window.__lightInputBridge = {
+      onFocus: (value, label) => {
+        receivedValue = value;
+        receivedLabel = label;
+      }
+    };
+
+    const input = document.getElementById("name");
+    input.focus();
+
+    assert.strictEqual(receivedValue, "initial", "bridge should receive input value");
+    assert.strictEqual(receivedLabel, "Name", "bridge should receive input label");
+    assert.strictEqual(document.activeElement, document.body, "input should be blurred to hide system keyboard");
+
+    window.__lightSetInputValue("updated");
+    assert.strictEqual(input.value, "updated", "input value should be updated from editor");
+  } finally {
+    close();
+  }
+});
+
 test("system theme applies correct CSS class", () => {
   const { window, document, close } = bootHooks();
   try {
-    // The device convention inverts the mapping: system dark mode uses the
-    // LightOS light theme, which corresponds to no dark CSS class.
+    // Standard mapping: system dark mode uses the dark CSS class.
     assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), false, "default should be light");
     window.__lightUseDarkTheme = true;
     window.__lightApplySystemTheme();
@@ -166,6 +315,121 @@ test("system theme applies correct CSS class", () => {
     window.__lightUseDarkTheme = false;
     window.__lightApplySystemTheme();
     assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), false, "dark class should be removed");
+  } finally {
+    close();
+  }
+});
+
+test("input bridge cancel closes editor without updating", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Form</title></head><body>
+      <input id="name" type="text" value="initial">
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    let received = false;
+    window.__lightInputBridge = {
+      onFocus: () => { received = true; }
+    };
+
+    const input = document.getElementById("name");
+    input.focus();
+    assert.strictEqual(received, true, "bridge should receive focus");
+
+    window.__lightCancelInput();
+    assert.strictEqual(input.value, "initial", "input value should not change");
+  } finally {
+    close();
+  }
+});
+
+test("contenteditable input is bridged", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Edit</title></head><body>
+      <div id="editor" contenteditable="true">hello</div>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    let receivedValue = null;
+    window.__lightInputBridge = {
+      onFocus: (value) => { receivedValue = value; }
+    };
+
+    const editor = document.getElementById("editor");
+    editor.dispatchEvent(new window.Event("focusin", { bubbles: true }));
+    assert.strictEqual(receivedValue, "hello", "contenteditable value should be bridged");
+
+    window.__lightSetInputValue("updated");
+    assert.strictEqual(editor.textContent, "updated", "contenteditable should be updated");
+  } finally {
+    close();
+  }
+});
+
+test("input label uses aria-label", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Form</title></head><body>
+      <input id="a" type="text" aria-label="Aria Label" value="x">
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    let receivedLabel = null;
+    window.__lightInputBridge = {
+      onFocus: (value, label) => { receivedLabel = label; }
+    };
+
+    document.getElementById("a").focus();
+    assert.strictEqual(receivedLabel, "Aria Label", "aria-label should be used");
+  } finally {
+    close();
+  }
+});
+
+test("input label falls back to placeholder", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Form</title></head><body>
+      <input id="b" type="text" placeholder="Placeholder Hint" value="y">
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    let receivedLabel = null;
+    window.__lightInputBridge = {
+      onFocus: (value, label) => { receivedLabel = label; }
+    };
+
+    document.getElementById("b").focus();
+    assert.strictEqual(receivedLabel, "Placeholder Hint", "placeholder should be used as fallback");
+  } finally {
+    close();
+  }
+});
+
+test("shadow roots are not themed when CSS injection is disabled", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Shadow</title></head><body>
+      <div id="host"></div>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    const host = document.getElementById("host");
+    const shadow = host.attachShadow({ mode: "open" });
+    const shadowRoot = document.createElement("div");
+    shadow.appendChild(shadowRoot);
+
+    window.__lightSetCssInjectionEnabled(false);
+    window.__lightToolRefresh();
+
+    assert.ok(!shadow.getElementById("__light_base_theme"), "shadow root should not get base theme when CSS injection is disabled");
   } finally {
     close();
   }
