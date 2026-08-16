@@ -2,6 +2,7 @@ package com.thelightphone.lightpage
 
 import androidx.lifecycle.viewModelScope
 import com.thelightphone.sdk.LightViewModel
+import com.thelightphone.sdk.ui.LightThemeController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -22,6 +23,12 @@ class BrowserViewModel(
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
 
     init {
+        // Set the initial Light theme before the first composition so the top bar
+        // and drawer backgrounds match the persisted/default state instead of
+        // flashing the controller default.
+        if (_uiState.value.themeInverted) LightThemeController.setLightTheme()
+        else LightThemeController.setDarkTheme()
+
         // Async preference restoration: the initial state uses the default URL and
         // reader ON, then DataStore values overwrite it once available. This avoids
         // blocking the main thread during ViewModel construction.
