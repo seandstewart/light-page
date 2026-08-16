@@ -110,10 +110,10 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
 
                 LightText(
                     text = statusText,
-                    variant = LightTextVariant.Copy,
+                    variant = LightTextVariant.Detail,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp)
                 )
 
                 // WebView host. The factory context is inferred; no Context import is used.
@@ -134,6 +134,8 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                                 setSupportMultipleWindows(false)
                                 javaScriptCanOpenWindowsAutomatically = false
                                 mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                                useWideViewPort = true
+                                loadWithOverviewMode = true
                             }
                             setBackgroundColor(android.graphics.Color.WHITE)
                             webChromeClient = WebChromeClient()
@@ -224,6 +226,7 @@ private fun NavRow(
     onOpenUrl: () -> Unit
 ) {
     LightBottomBar(
+        topPadding = 0.dp,
         items = listOf(
             LightBarButton.LightIcon(
                 icon = LightIcons.BACK,

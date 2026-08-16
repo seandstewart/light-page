@@ -4,9 +4,9 @@
   --light-reader-fg: #000000;
   --light-reader-muted: #555555;
   --light-reader-border: #000000;
-  --light-reader-control-height: 48px;
-  --light-reader-max-width: 38rem;
-  --light-reader-line-height: 1.6;
+  --light-reader-control-height: 40px;
+  --light-reader-max-width: 32rem;
+  --light-reader-line-height: 1.5;
 }
 
 html.__light_dark_mode {
@@ -22,7 +22,7 @@ html.__light_dark_mode {
   color: var(--light-reader-fg);
   font-family: system-ui, sans-serif;
   line-height: var(--light-reader-line-height);
-  padding: 16px;
+  padding: 12px;
   max-width: var(--light-reader-max-width);
   margin: 0 auto;
 }

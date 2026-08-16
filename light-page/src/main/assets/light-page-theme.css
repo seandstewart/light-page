@@ -5,7 +5,8 @@
   --light-muted: #555555;
   --light-border: #000000;
   --light-surface: #f2f2f2;
-  --light-control-height: 48px;
+  --light-control-height: 40px;
+  --light-scale: 0.85;
 }
 
 html.__light_dark_mode {
@@ -15,6 +16,12 @@ html.__light_dark_mode {
   --light-muted: #aaaaaa;
   --light-border: #ffffff;
   --light-surface: #333333;
+}
+
+html {
+  transform: scale(var(--light-scale));
+  transform-origin: top left;
+  width: calc(100% / var(--light-scale));
 }
 
 html,
