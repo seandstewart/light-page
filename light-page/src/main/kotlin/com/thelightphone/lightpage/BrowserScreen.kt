@@ -8,6 +8,7 @@ import android.webkit.WebView
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.material3.Icon
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.text.input.rememberTextFieldState
@@ -33,6 +35,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
@@ -45,6 +48,7 @@ import com.thelightphone.sdk.rememberKeyboardOptions
 import com.thelightphone.sdk.ui.LightBarButton
 import com.thelightphone.sdk.ui.LightBottomBar
 import com.thelightphone.sdk.ui.LightIcon
+import com.thelightphone.sdk.ui.LightIconConfiguration
 import com.thelightphone.sdk.ui.LightIcons
 import com.thelightphone.sdk.ui.LightText
 import com.thelightphone.sdk.ui.LightTextInputEditor
@@ -381,16 +385,19 @@ private fun MenuDrawer(
         MenuRow(
             label = "Reader Mode",
             subtitle = if (state.readerRequested) "On" else "Off",
+            icon = if (state.readerRequested) LightIcons.TOGGLE_STATE_ON else LightIcons.TOGGLE_STATE_OFF,
             onClick = onToggleReader
         )
         MenuRow(
             label = "CSS Injection",
             subtitle = if (state.cssInjectionEnabled) "On" else "Off",
+            icon = if (state.cssInjectionEnabled) LightIcons.TOGGLE_STATE_ON else LightIcons.TOGGLE_STATE_OFF,
             onClick = onToggleCss
         )
         MenuRow(
             label = "Invert",
             subtitle = if (state.themeInverted) "Light mode" else "Dark mode",
+            icon = if (state.themeInverted) LightIcons.TOGGLE_STATE_ON else LightIcons.TOGGLE_STATE_OFF,
             onClick = onToggleTheme
         )
         MenuRow(
@@ -405,6 +412,7 @@ private fun MenuDrawer(
 private fun MenuRow(
     label: String,
     subtitle: String = "",
+    icon: LightIconConfiguration? = null,
     onClick: () -> Unit,
     showArrow: Boolean = false
 ) {
@@ -424,6 +432,12 @@ private fun MenuRow(
                     lighten = true
                 )
             }
+        }
+        if (icon != null) {
+            LightIcon(
+                icon = icon,
+                contentDescription = null
+            )
         }
         if (showArrow) {
             LightIcon(
@@ -529,10 +543,13 @@ private fun SwipeUrlRow(
             contentAlignment = Alignment.CenterStart
         ) {
             if (animatedOffset > deleteThreshold) {
-                LightIcon(
-                    icon = LightIcons.DELETE,
-                    modifier = Modifier.lightClickable { onDelete() },
-                    contentDescription = "Delete"
+                Icon(
+                    painter = painterResource(LightIcons.DELETE.drawableResource),
+                    contentDescription = "Delete",
+                    tint = LightThemeTokens.colors.background,
+                    modifier = Modifier
+                        .size(2f.gridUnitsAsDp())
+                        .lightClickable { onDelete() }
                 )
             }
         }
