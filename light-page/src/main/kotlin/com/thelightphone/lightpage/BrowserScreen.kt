@@ -6,11 +6,13 @@ import android.webkit.WebChromeClient
 import android.webkit.WebSettings
 import android.webkit.WebView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -74,6 +76,13 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
     override fun Content() {
         val themeColors by LightThemeController.colors.collectAsState()
         val state by viewModel.uiState.collectAsState()
+
+        // Keep the Light theme in sync with the Android system dark/light setting.
+        val isSystemInDarkTheme = isSystemInDarkTheme()
+        LaunchedEffect(isSystemInDarkTheme) {
+            if (isSystemInDarkTheme) LightThemeController.setDarkTheme()
+            else LightThemeController.setLightTheme()
+        }
 
         // Tracks the last URL we explicitly loaded so normal link navigation
         // does not get clobbered by `requestedUrl` state changes.
