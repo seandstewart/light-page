@@ -7,6 +7,7 @@
   window.__lightReaderApplied = false;
 
   if (typeof window.__lightReaderEnabled === "undefined") window.__lightReaderEnabled = true;
+  if (typeof window.__lightReaderForced === "undefined") window.__lightReaderForced = false;
   if (typeof window.__lightCssInjectionEnabled === "undefined") window.__lightCssInjectionEnabled = true;
   if (typeof window.__lightUseDarkTheme === "undefined") window.__lightUseDarkTheme = false;
 
@@ -54,8 +55,7 @@
     titleContains(["login", "sign in", "sign up", "auth", "password"]);
 
   const isSearchPage = () =>
-    pathContains(["search", "find"]) ||
-    document.querySelector('input[type="search"], [role="search"]') !== null;
+    pathContains(["search", "find"]);
 
   const isCheckoutPage = () =>
     pathContains(["checkout", "cart", "payment", "billing", "order"]);
@@ -123,8 +123,8 @@
     }
   };
 
-  const applyReaderMode = () => {
-    if (!isReaderEligible()) {
+  const applyReaderMode = (force = false) => {
+    if (!force && !isReaderEligible()) {
       restoreOriginal();
       return;
     }
@@ -205,7 +205,8 @@
 
   window.__lightSetReaderEnabled = (on) => {
     window.__lightReaderEnabled = !!on;
-    if (on) applyReaderMode();
+    window.__lightReaderForced = true;
+    if (on) applyReaderMode(true);
     else restoreOriginal();
   };
 
@@ -236,7 +237,7 @@
       ensureStyle("__light_reader_theme", __READER_CSS__);
     }
     if (window.__lightCssInjectionEnabled && window.__lightReaderEnabled) {
-      applyReaderMode();
+      applyReaderMode(window.__lightReaderForced);
     } else {
       restoreOriginal();
     }

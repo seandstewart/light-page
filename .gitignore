@@ -53,3 +53,5 @@ __pycache__/
 .zed/
 .scratch/
 .env
+light-page/src/main/assets/purify.js
+light-page/src/main/assets/readability.js

@@ -17,6 +17,7 @@ data class BrowserUiState(
     val canGoBack: Boolean = false,
     val canGoForward: Boolean = false,
     val readerRequested: Boolean = true,
+    val readerForced: Boolean = false,
     val readerApplied: Boolean = false,
     val cssInjectionEnabled: Boolean = true,
     val themeInverted: Boolean = false,

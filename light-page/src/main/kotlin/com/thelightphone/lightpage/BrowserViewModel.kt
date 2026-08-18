@@ -45,6 +45,11 @@ class BrowserViewModel(
             }
         }
         viewModelScope.launch {
+            preferences.readerForced.collect { forced ->
+                _uiState.update { it.copy(readerForced = forced) }
+            }
+        }
+        viewModelScope.launch {
             preferences.themeInverted.collect { inverted ->
                 _uiState.update { it.copy(themeInverted = inverted) }
             }
@@ -80,8 +85,11 @@ class BrowserViewModel(
 
     fun toggleReader() {
         val next = !_uiState.value.readerRequested
-        _uiState.update { it.copy(readerRequested = next) }
-        viewModelScope.launch { preferences.setReaderEnabled(next) }
+        _uiState.update { it.copy(readerRequested = next, readerForced = true) }
+        viewModelScope.launch {
+            preferences.setReaderEnabled(next)
+            preferences.setReaderForced(true)
+        }
     }
 
     fun toggleCssInjection() {

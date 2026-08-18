@@ -16,12 +16,14 @@ import kotlinx.coroutines.flow.map
  */
 interface ReaderPreferences {
     val readerEnabled: Flow<Boolean>
+    val readerForced: Flow<Boolean>
     val lastUrl: Flow<String?>
     val themeInverted: Flow<Boolean>
     val cssInjectionEnabled: Flow<Boolean>
     val recentUrls: Flow<List<String>>
 
     suspend fun setReaderEnabled(enabled: Boolean)
+    suspend fun setReaderForced(forced: Boolean)
     suspend fun setLastUrl(url: String)
     suspend fun setThemeInverted(inverted: Boolean)
     suspend fun setCssInjectionEnabled(enabled: Boolean)
@@ -38,6 +40,9 @@ class DataStoreReaderPreferences(context: SealedLightContext) : ReaderPreference
     override val readerEnabled: Flow<Boolean> = dataStore.data
         .map { it[KEY_READER_ENABLED] ?: true }
 
+    override val readerForced: Flow<Boolean> = dataStore.data
+        .map { it[KEY_READER_FORCED] ?: false }
+
     override val lastUrl: Flow<String?> = dataStore.data
         .map { it[KEY_LAST_URL] }
 
@@ -52,6 +57,10 @@ class DataStoreReaderPreferences(context: SealedLightContext) : ReaderPreference
 
     override suspend fun setReaderEnabled(enabled: Boolean) {
         dataStore.edit { it[KEY_READER_ENABLED] = enabled }
+    }
+
+    override suspend fun setReaderForced(forced: Boolean) {
+        dataStore.edit { it[KEY_READER_FORCED] = forced }
     }
 
     override suspend fun setLastUrl(url: String) {
@@ -72,6 +81,7 @@ class DataStoreReaderPreferences(context: SealedLightContext) : ReaderPreference
 
     private companion object {
         val KEY_READER_ENABLED = booleanPreferencesKey("reader_enabled")
+        val KEY_READER_FORCED = booleanPreferencesKey("reader_forced")
         val KEY_LAST_URL = stringPreferencesKey("last_url")
         val KEY_THEME_INVERTED = booleanPreferencesKey("theme_inverted")
         val KEY_CSS_INJECTION_ENABLED = booleanPreferencesKey("css_injection_enabled")

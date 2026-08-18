@@ -111,13 +111,15 @@ class BrowserViewModelTest {
     }
 
     @Test
-    fun `toggleReader flips reader requested and persists`() = runTest {
+    fun `toggleReader flips reader requested, marks forced, and persists`() = runTest {
         val viewModel = BrowserViewModel(preferences = fakePreferences)
         viewModel.toggleReader()
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertFalse(state.readerRequested)
+        assertTrue(state.readerForced)
         assertFalse(fakePreferences.readerEnabled.first())
+        assertTrue(fakePreferences.readerForced.first())
     }
 
     @Test
@@ -342,12 +344,14 @@ class BrowserViewModelTest {
 
     private class FakeReaderPreferences : ReaderPreferences {
         private val _readerEnabled = MutableStateFlow(true)
+        private val _readerForced = MutableStateFlow(false)
         private val _lastUrl = MutableStateFlow<String?>(null)
         private val _themeInverted = MutableStateFlow(false)
         private val _cssInjectionEnabled = MutableStateFlow(true)
         private val _recentUrls = MutableStateFlow<List<String>>(emptyList())
 
         override val readerEnabled: Flow<Boolean> = _readerEnabled
+        override val readerForced: Flow<Boolean> = _readerForced
         override val lastUrl: Flow<String?> = _lastUrl
         override val themeInverted: Flow<Boolean> = _themeInverted
         override val cssInjectionEnabled: Flow<Boolean> = _cssInjectionEnabled
@@ -355,6 +359,10 @@ class BrowserViewModelTest {
 
         override suspend fun setReaderEnabled(enabled: Boolean) {
             _readerEnabled.value = enabled
+        }
+
+        override suspend fun setReaderForced(forced: Boolean) {
+            _readerForced.value = forced
         }
 
         override suspend fun setLastUrl(url: String) {

@@ -123,7 +123,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
             else LightThemeController.setDarkTheme()
         }
 
-        LaunchedEffect(state.readerRequested, state.themeInverted, state.cssInjectionEnabled) {
+        LaunchedEffect(state.readerRequested, state.readerForced, state.themeInverted, state.cssInjectionEnabled) {
             webView?.apply {
                 applyLightGlobals(state)
                 evaluateJavascript(
@@ -322,6 +322,7 @@ private class InputBridge(
 private fun WebView.applyLightGlobals(state: BrowserUiState) {
     evaluateJavascript(
         "window.__lightReaderEnabled = ${state.readerRequested}; " +
+                "window.__lightReaderForced = ${state.readerForced}; " +
                 "window.__lightCssInjectionEnabled = ${state.cssInjectionEnabled}; " +
                 "window.__lightUseDarkTheme = ${!state.themeInverted};",
         null
@@ -557,6 +558,7 @@ private fun SwipeUrlRow(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
+                .background(LightThemeTokens.colors.background)
                 .offset {
                     with(density) {
                         IntOffset(animatedOffset.dp.roundToPx(), 0)

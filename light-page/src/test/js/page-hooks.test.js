@@ -230,6 +230,72 @@ test("reader skips ineligible pages", () => {
   }
 });
 
+test("forced reader mode bypasses eligibility heuristic", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Search</title></head><body>
+      <h1>Search</h1>
+      <input type="search" placeholder="Search...">
+      <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+      <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+      <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html, "https://example.com/search");
+  try {
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "auto-detect should skip ineligible page");
+    window.__lightSetReaderEnabled(true);
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), true, "forced reader should apply despite ineligible page");
+  } finally {
+    close();
+  }
+});
+
+test("reader applies to article pages with a header search input", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Article</title></head><body>
+      <header>
+        <input type="search" placeholder="Search">
+        <nav>Home</nav>
+      </header>
+      <article>
+        <h1>Recipe Title</h1>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { document, close } = bootHooks(html);
+  try {
+    assert.ok(document.getElementById("__light_reader_root"), "reader root should be created for article");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), true, "reader should be applied");
+  } finally {
+    close();
+  }
+});
+
+test("reader skips pages on search URLs", () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Search</title></head><body>
+      <h1>Search</h1>
+      <input type="search" placeholder="Search...">
+      <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+      <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+      <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+    </body></html>
+  `;
+  const { document, close } = bootHooks(html, "https://example.com/search");
+  try {
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "dedicated search page should not get reader");
+    assert.ok(!document.getElementById("__light_reader_root"), "reader root should not be created");
+  } finally {
+    close();
+  }
+});
+
 test("reader skips pages with forms", () => {
   const html = `
     <!DOCTYPE html>
