@@ -1,9 +1,18 @@
 package com.thelightphone.lightpage
 
+import android.net.Uri
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
+import io.mockk.every
+import io.mockk.mockk
+import io.mockk.mockkStatic
+import io.mockk.unmockkStatic
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -23,22 +32,28 @@ import org.junit.jupiter.api.Test
 class BrowserViewModelTest {
 
     private val testDispatcher = StandardTestDispatcher()
-    private val fakePreferences = FakeReaderPreferences()
+    private lateinit var dataStore: FakeDataStore
+    private lateinit var preferences: ReaderPreferences
 
     @BeforeEach
     fun setup() {
         Dispatchers.setMain(testDispatcher)
+        mockkStatic(Uri::class)
+        every { Uri.parse(any<String>()) } answers { mockUriFor(arg<String>(0)) }
+        dataStore = FakeDataStore()
+        preferences = ReaderPreferences(dataStore)
     }
 
     @AfterEach
     fun tearDown() {
         Dispatchers.resetMain()
+        unmockkStatic(Uri::class)
     }
 
     @Test
     fun `initial state uses provided url and reader requested`() = runTest {
         val viewModel = BrowserViewModel(
-            preferences = fakePreferences,
+            preferences = preferences,
             initialUrl = "https://test.example.com"
         )
         val state = viewModel.uiState.first()
@@ -48,14 +63,14 @@ class BrowserViewModelTest {
 
     @Test
     fun `initial state restores preferences`() = runTest {
-        fakePreferences.setLastUrl("https://saved.example.com")
-        fakePreferences.setReaderEnabled(false)
-        fakePreferences.setThemeInverted(true)
-        fakePreferences.setCssInjectionEnabled(false)
-        fakePreferences.setRecentUrls(listOf("https://one.example.com", "https://two.example.com"))
+        preferences.setLastUrl("https://saved.example.com")
+        preferences.setReaderEnabled(false)
+        preferences.setThemeInverted(true)
+        preferences.setCssInjectionEnabled(false)
+        preferences.setRecentUrls(listOf("https://one.example.com", "https://two.example.com"))
 
         val viewModel = BrowserViewModel(
-            preferences = fakePreferences,
+            preferences = preferences,
             initialUrl = "https://test.example.com"
         )
         advanceUntilIdle()
@@ -79,7 +94,7 @@ class BrowserViewModelTest {
 
     @Test
     fun `onWebState updates state fields`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.onWebState(
             WebStateUpdate(
                 url = "https://example.com",
@@ -99,7 +114,7 @@ class BrowserViewModelTest {
 
     @Test
     fun `onWebState clears error only when clearError is true`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.onWebState(WebStateUpdate(error = BrowserError.Offline))
         assertNotNull(viewModel.uiState.first().error)
 
@@ -112,39 +127,39 @@ class BrowserViewModelTest {
 
     @Test
     fun `toggleReader flips reader requested, marks forced, and persists`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.toggleReader()
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertFalse(state.readerRequested)
         assertTrue(state.readerForced)
-        assertFalse(fakePreferences.readerEnabled.first())
-        assertTrue(fakePreferences.readerForced.first())
+        assertFalse(preferences.readerEnabled.first())
+        assertTrue(preferences.readerForced.first())
     }
 
     @Test
     fun `toggleCssInjection flips css injection and persists`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.toggleCssInjection()
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertFalse(state.cssInjectionEnabled)
-        assertFalse(fakePreferences.cssInjectionEnabled.first())
+        assertFalse(preferences.cssInjectionEnabled.first())
     }
 
     @Test
     fun `toggleThemeInverted flips theme inverted and persists`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.toggleThemeInverted()
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertTrue(state.themeInverted)
-        assertTrue(fakePreferences.themeInverted.first())
+        assertTrue(preferences.themeInverted.first())
     }
 
     @Test
     fun `menu and drawer visibility toggles`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.showMenu(true)
         assertTrue(viewModel.uiState.first().menuVisible)
         viewModel.showMenu(false)
@@ -157,8 +172,8 @@ class BrowserViewModelTest {
 
     @Test
     fun `showUrlEditor sets mode and initial value`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://first.example.com", "https://second.example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://first.example.com", "https://second.example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.showUrlEditor(UrlEditorMode.Edit(1))
@@ -169,23 +184,23 @@ class BrowserViewModelTest {
     }
 
     @Test
-    fun `addNewUrl normalizes and moves to front of recent urls`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://old.example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+    fun `submitUrl normalizes and moves to front of recent urls`() = runTest {
+        preferences.setRecentUrls(listOf("https://old.example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
-        viewModel.addNewUrl("https://new.example.com")
+        viewModel.submitUrl("https://new.example.com")
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertEquals("https://new.example.com", state.requestedUrl)
         assertEquals(listOf("https://new.example.com", "https://old.example.com"), state.recentUrls)
-        assertEquals("https://new.example.com", fakePreferences.lastUrl.first())
+        assertEquals("https://new.example.com", preferences.lastUrl.first())
     }
 
     @Test
     fun `editUrl updates existing url and persists`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://old.example.com", "https://other.example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://old.example.com", "https://other.example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.editUrl(0, "https://updated.example.com")
@@ -193,25 +208,25 @@ class BrowserViewModelTest {
         val state = viewModel.uiState.first()
         assertFalse(state.urlEditorVisible)
         assertEquals(listOf("https://updated.example.com", "https://other.example.com"), state.recentUrls)
-        assertEquals(state.recentUrls, fakePreferences.recentUrls.first())
+        assertEquals(state.recentUrls, preferences.recentUrls.first())
     }
 
     @Test
     fun `removeUrl deletes url and persists`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://one.example.com", "https://two.example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://one.example.com", "https://two.example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.removeUrl(0)
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertEquals(listOf("https://two.example.com"), state.recentUrls)
-        assertEquals(state.recentUrls, fakePreferences.recentUrls.first())
+        assertEquals(state.recentUrls, preferences.recentUrls.first())
     }
 
     @Test
     fun `open and close web input editor`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.openWebInput("hello", "Name")
         val openState = viewModel.uiState.first()
         assertNotNull(openState.webInputEditor)
@@ -224,7 +239,7 @@ class BrowserViewModelTest {
 
     @Test
     fun `submitUrl normalizes and persists valid url`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.showUrlEditor(UrlEditorMode.Add)
         viewModel.submitUrl("example.com")
         advanceUntilIdle()
@@ -233,14 +248,14 @@ class BrowserViewModelTest {
         assertFalse(state.urlEditorVisible)
         assertFalse(state.urlDrawerVisible)
         assertFalse(state.menuVisible)
-        assertEquals("https://example.com", fakePreferences.lastUrl.first())
-        assertEquals(listOf("https://example.com"), fakePreferences.recentUrls.first())
+        assertEquals("https://example.com", preferences.lastUrl.first())
+        assertEquals(listOf("https://example.com"), preferences.recentUrls.first())
     }
 
     @Test
     fun `submitUrl ignores invalid url`() = runTest {
         val viewModel = BrowserViewModel(
-            preferences = fakePreferences,
+            preferences = preferences,
             initialUrl = "https://initial.example.com"
         )
         viewModel.showUrlEditor(UrlEditorMode.Add)
@@ -252,8 +267,8 @@ class BrowserViewModelTest {
 
     @Test
     fun `submitUrl deduplicates recent urls`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://dup.example.com", "https://other.example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://dup.example.com", "https://other.example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.submitUrl("https://dup.example.com")
@@ -264,8 +279,8 @@ class BrowserViewModelTest {
 
     @Test
     fun `closeUrlEditor resets editor state`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.showUrlEditor(UrlEditorMode.Edit(0))
@@ -278,8 +293,8 @@ class BrowserViewModelTest {
 
     @Test
     fun `editUrl closes editor when url is invalid`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.showUrlEditor(UrlEditorMode.Edit(0))
@@ -291,22 +306,22 @@ class BrowserViewModelTest {
 
     @Test
     fun `removeUrl out of range is ignored`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.removeUrl(10)
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertEquals(listOf("https://example.com"), state.recentUrls)
-        assertEquals(state.recentUrls, fakePreferences.recentUrls.first())
+        assertEquals(state.recentUrls, preferences.recentUrls.first())
     }
 
     @Test
     fun `recent urls are capped at 20`() = runTest {
         val urls = (1..25).map { "https://site$it.example.com" }
-        fakePreferences.setRecentUrls(urls)
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(urls)
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.submitUrl("https://new.example.com")
@@ -318,8 +333,8 @@ class BrowserViewModelTest {
 
     @Test
     fun `editUrl removes duplicate after editing`() = runTest {
-        fakePreferences.setRecentUrls(listOf("https://a.example.com", "https://b.example.com", "https://c.example.com"))
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        preferences.setRecentUrls(listOf("https://a.example.com", "https://b.example.com", "https://c.example.com"))
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
 
         viewModel.editUrl(2, "https://a.example.com")
@@ -327,12 +342,12 @@ class BrowserViewModelTest {
         val state = viewModel.uiState.first()
         assertFalse(state.urlEditorVisible)
         assertEquals(listOf("https://a.example.com", "https://b.example.com"), state.recentUrls)
-        assertEquals(state.recentUrls, fakePreferences.recentUrls.first())
+        assertEquals(state.recentUrls, preferences.recentUrls.first())
     }
 
     @Test
     fun `showUrlEditor closes menu and url drawer`() = runTest {
-        val viewModel = BrowserViewModel(preferences = fakePreferences)
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.showMenu(true)
         viewModel.showUrlDrawer(true)
         viewModel.showUrlEditor(UrlEditorMode.Add)
@@ -342,43 +357,38 @@ class BrowserViewModelTest {
         assertTrue(state.urlEditorVisible)
     }
 
-    private class FakeReaderPreferences : ReaderPreferences {
-        private val _readerEnabled = MutableStateFlow(true)
-        private val _readerForced = MutableStateFlow(false)
-        private val _lastUrl = MutableStateFlow<String?>(null)
-        private val _themeInverted = MutableStateFlow(false)
-        private val _cssInjectionEnabled = MutableStateFlow(true)
-        private val _recentUrls = MutableStateFlow<List<String>>(emptyList())
+    private class FakeDataStore : DataStore<Preferences> {
+        private val current = MutableStateFlow(emptyPreferences())
 
-        override val readerEnabled: Flow<Boolean> = _readerEnabled
-        override val readerForced: Flow<Boolean> = _readerForced
-        override val lastUrl: Flow<String?> = _lastUrl
-        override val themeInverted: Flow<Boolean> = _themeInverted
-        override val cssInjectionEnabled: Flow<Boolean> = _cssInjectionEnabled
-        override val recentUrls: Flow<List<String>> = _recentUrls
+        override val data: Flow<Preferences> = current.asStateFlow()
 
-        override suspend fun setReaderEnabled(enabled: Boolean) {
-            _readerEnabled.value = enabled
+        override suspend fun updateData(transform: suspend (Preferences) -> Preferences): Preferences {
+            val updated = transform(current.value)
+            current.value = updated
+            return updated
         }
+    }
 
-        override suspend fun setReaderForced(forced: Boolean) {
-            _readerForced.value = forced
+    private fun mockUriFor(input: String): Uri {
+        val trimmed = input.trim()
+        if (trimmed.isEmpty() || trimmed.contains(" ")) {
+            return mockUri(null, null)
         }
+        val scheme = when {
+            trimmed.startsWith("https://") -> "https"
+            trimmed.startsWith("http://") -> "http"
+            trimmed.startsWith("file://") -> "file"
+            trimmed.startsWith("javascript:") -> "javascript"
+            else -> null
+        }
+        val host = scheme?.let {
+            trimmed.removePrefix("$it://").substringBefore('/').takeIf { h -> h.isNotBlank() }
+        }
+        return mockUri(scheme, host)
+    }
 
-        override suspend fun setLastUrl(url: String) {
-            _lastUrl.value = url
-        }
-
-        override suspend fun setThemeInverted(inverted: Boolean) {
-            _themeInverted.value = inverted
-        }
-
-        override suspend fun setCssInjectionEnabled(enabled: Boolean) {
-            _cssInjectionEnabled.value = enabled
-        }
-
-        override suspend fun setRecentUrls(urls: List<String>) {
-            _recentUrls.value = urls
-        }
+    private fun mockUri(scheme: String?, host: String?): Uri = mockk<Uri>().apply {
+        every { this@apply.scheme } returns scheme
+        every { this@apply.host } returns host
     }
 }

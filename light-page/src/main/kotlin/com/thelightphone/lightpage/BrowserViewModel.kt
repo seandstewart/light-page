@@ -6,6 +6,7 @@ import com.thelightphone.sdk.ui.LightThemeController
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 
@@ -33,36 +34,33 @@ class BrowserViewModel(
         // reader ON, then DataStore values overwrite it once available. This avoids
         // blocking the main thread during ViewModel construction.
         viewModelScope.launch {
-            preferences.lastUrl.collect { saved ->
-                if (saved != null && _uiState.value.requestedUrl != saved) {
-                    _uiState.update { it.copy(requestedUrl = saved) }
+            combine(
+                preferences.lastUrl,
+                preferences.readerEnabled,
+                preferences.readerForced,
+                preferences.themeInverted,
+                preferences.cssInjectionEnabled,
+                preferences.recentUrls,
+            ) { values ->
+                val lastUrl = values[0] as String?
+                val readerEnabled = values[1] as Boolean
+                val readerForced = values[2] as Boolean
+                val themeInverted = values[3] as Boolean
+                val cssInjectionEnabled = values[4] as Boolean
+
+                @Suppress("UNCHECKED_CAST")
+                val recentUrls = values[5] as List<String>
+                _uiState.update { current ->
+                    current.copy(
+                        requestedUrl = if (lastUrl != null && current.requestedUrl != lastUrl) lastUrl else current.requestedUrl,
+                        readerRequested = readerEnabled,
+                        readerForced = readerForced,
+                        themeInverted = themeInverted,
+                        cssInjectionEnabled = cssInjectionEnabled,
+                        recentUrls = recentUrls,
+                    )
                 }
-            }
-        }
-        viewModelScope.launch {
-            preferences.readerEnabled.collect { enabled ->
-                _uiState.update { it.copy(readerRequested = enabled) }
-            }
-        }
-        viewModelScope.launch {
-            preferences.readerForced.collect { forced ->
-                _uiState.update { it.copy(readerForced = forced) }
-            }
-        }
-        viewModelScope.launch {
-            preferences.themeInverted.collect { inverted ->
-                _uiState.update { it.copy(themeInverted = inverted) }
-            }
-        }
-        viewModelScope.launch {
-            preferences.cssInjectionEnabled.collect { enabled ->
-                _uiState.update { it.copy(cssInjectionEnabled = enabled) }
-            }
-        }
-        viewModelScope.launch {
-            preferences.recentUrls.collect { urls ->
-                _uiState.update { it.copy(recentUrls = urls) }
-            }
+            }.collect { }
         }
     }
 
@@ -152,10 +150,6 @@ class BrowserViewModel(
         viewModelScope.launch { if (persisted.isNotEmpty()) preferences.setRecentUrls(persisted) }
     }
 
-    fun addNewUrl(raw: String) {
-        submitUrl(raw)
-    }
-
     fun removeUrl(index: Int) {
         val updated = _uiState.value.recentUrls.toMutableList().apply {
             if (index in indices) removeAt(index)
@@ -192,11 +186,6 @@ class BrowserViewModel(
             preferences.setLastUrl(normalized)
             preferences.setRecentUrls(updated)
         }
-    }
-
-    fun requestExit() {
-        // The screen owns the WebView reference and the LightScreen back path;
-        // the ViewModel intentionally never holds the WebView.
     }
 
     internal companion object {

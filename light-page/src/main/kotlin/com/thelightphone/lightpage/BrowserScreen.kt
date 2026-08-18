@@ -70,7 +70,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
         get() = BrowserViewModel::class.java
 
     override fun createViewModel(): BrowserViewModel = BrowserViewModel(
-        preferences = DataStoreReaderPreferences(lightContext)
+        preferences = ReaderPreferences(lightContext.dataStore)
     )
 
     private var webView: WebView? = null
@@ -271,7 +271,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                         keyboardOptionsFlow = keyboardOptionsFlow,
                         onSubmit = { url ->
                             when (currentMode) {
-                                is UrlEditorMode.Add -> viewModel.addNewUrl(url)
+                                is UrlEditorMode.Add -> viewModel.submitUrl(url)
                                 is UrlEditorMode.Edit -> viewModel.editUrl(currentMode.index, url)
                             }
                         },

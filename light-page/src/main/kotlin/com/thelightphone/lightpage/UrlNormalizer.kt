@@ -1,6 +1,6 @@
 package com.thelightphone.lightpage
 
-import java.net.URI
+import android.net.Uri
 
 /**
  * URL normalization and policy validation for the M4 URL entry modal.
@@ -10,8 +10,6 @@ import java.net.URI
  * plausible web URLs are rejected.
  */
 object UrlNormalizer {
-
-    private val SCHEME_REGEX = Regex("^([a-zA-Z][a-zA-Z0-9+.-]*:)")
 
     /**
      * Normalize a raw user-entered URL string.
@@ -24,7 +22,7 @@ object UrlNormalizer {
     fun normalize(raw: String): String {
         val trimmed = raw.trim()
         if (trimmed.isEmpty()) return trimmed
-        val hasScheme = SCHEME_REGEX.containsMatchIn(trimmed)
+        val hasScheme = Uri.parse(trimmed).scheme != null
         return if (hasScheme) trimmed else "https://$trimmed"
     }
 
@@ -34,19 +32,13 @@ object UrlNormalizer {
      * or `null` if it should be rejected.
      *
      * This mirrors [BrowserPolicy] (https allowed, http allowed only in debug)
-     * without requiring an Android `Uri` object, which keeps the normalizer
-     * unit-testable on the JVM.
+     * using the platform Uri parser.
      */
     fun validate(raw: String): String? {
         val normalized = normalize(raw)
         if (normalized.isEmpty()) return null
 
-        val uri = try {
-            URI(normalized)
-        } catch (e: Exception) {
-            return null
-        }
-
+        val uri = Uri.parse(normalized)
         val scheme = uri.scheme?.lowercase() ?: return null
         if (scheme !in setOf("https", "http")) return null
         if (scheme == "http" && !BuildConfig.DEBUG) return null
