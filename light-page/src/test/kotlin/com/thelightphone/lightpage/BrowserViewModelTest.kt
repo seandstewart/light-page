@@ -113,6 +113,20 @@ class BrowserViewModelTest {
     }
 
     @Test
+    fun `onWebState with reader error sets error and readerApplied false`() = runTest {
+        val viewModel = BrowserViewModel(preferences = preferences)
+        viewModel.onWebState(
+            WebStateUpdate(
+                readerApplied = false,
+                error = BrowserError.Reader(ReaderErrorCode.TOO_SHORT)
+            )
+        )
+        val state = viewModel.uiState.first()
+        assertFalse(state.readerApplied)
+        assertEquals(BrowserError.Reader(ReaderErrorCode.TOO_SHORT), state.error)
+    }
+
+    @Test
     fun `onWebState clears error only when clearError is true`() = runTest {
         val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.onWebState(WebStateUpdate(error = BrowserError.Offline))

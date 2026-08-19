@@ -172,9 +172,19 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                                     setBackgroundColor(android.graphics.Color.WHITE)
                                     webChromeClient = WebChromeClient()
                                     addJavascriptInterface(
-                                        ReaderStateBridge { applied ->
-                                            viewModel.onWebState(WebStateUpdate(readerApplied = applied))
-                                        },
+                                        ReaderStateBridge(
+                                            onReaderApplied = { applied ->
+                                                viewModel.onWebState(WebStateUpdate(readerApplied = applied))
+                                            },
+                                            onReaderError = { reason ->
+                                                viewModel.onWebState(
+                                                    WebStateUpdate(
+                                                        readerApplied = false,
+                                                        error = BrowserError.Reader(parseReaderError(reason))
+                                                    )
+                                                )
+                                            }
+                                        ),
                                         "__lightReaderBridge"
                                     )
                                     addJavascriptInterface(
@@ -291,14 +301,30 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
  * transformation is currently applied. The WebView instance never enters the
  * ViewModel; commands flow one-way through the Compose layer.
  */
-private class ReaderStateBridge(
-    private val onReaderApplied: (Boolean) -> Unit
+internal class ReaderStateBridge(
+    onReaderApplied: (Boolean) -> Unit,
+    onReaderError: (String) -> Unit
 ) {
+    private val appliedHandler = onReaderApplied
+    private val errorHandler = onReaderError
+
     @JavascriptInterface
     fun onReaderApplied(applied: Boolean) {
-        onReaderApplied(applied)
+        appliedHandler(applied)
+    }
+
+    @JavascriptInterface
+    fun onReaderError(reason: String) {
+        errorHandler(reason)
     }
 }
+
+private fun parseReaderError(reason: String): ReaderErrorCode =
+    try {
+        ReaderErrorCode.valueOf(reason)
+    } catch (e: IllegalArgumentException) {
+        ReaderErrorCode.EXCEPTION
+    }
 
 /**
  * JavaScript bridge that forwards focused text input values from the page to

@@ -46,12 +46,22 @@ data class WebStateUpdate(
     val clearError: Boolean = false
 )
 
+enum class ReaderErrorCode {
+    NOT_ELIGIBLE,
+    PARSE_FAILED,
+    TOO_SHORT,
+    INTERACTIVE,
+    LIBRARY_MISSING,
+    EXCEPTION,
+}
+
 sealed interface BrowserError {
     data object Tls : BrowserError
     data object Offline : BrowserError
     data object RendererGone : BrowserError
     data class Http(val code: Int) : BrowserError
     data class UnsupportedScheme(val scheme: String) : BrowserError
+    data class Reader(val code: ReaderErrorCode) : BrowserError
 }
 
 /**
@@ -64,4 +74,5 @@ fun BrowserError.message(): String = when (this) {
     is BrowserError.RendererGone -> "Renderer gone"
     is BrowserError.Http -> "HTTP error $code"
     is BrowserError.UnsupportedScheme -> "Unsupported scheme ($scheme)"
+    is BrowserError.Reader -> "Reader: ${code.name}"
 }
