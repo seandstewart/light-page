@@ -123,17 +123,6 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
             else LightThemeController.setDarkTheme()
         }
 
-        LaunchedEffect(state.readerRequested, state.readerForced, state.pageTheme, state.cssInjectionEnabled) {
-            webView?.apply {
-                applyLightGlobals(state)
-                evaluateJavascript(
-                    "window.__lightApplySystemTheme && window.__lightApplySystemTheme(); " +
-                            "window.__lightToolRefresh && window.__lightToolRefresh();",
-                    null
-                )
-            }
-        }
-
         var lastLoadedUrl by remember { mutableStateOf<String?>(null) }
 
         LightTheme(colors = themeColors) {
@@ -197,7 +186,6 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                                         injection = PageInjector(context.assets),
                                         onState = viewModel::onWebState
                                     )
-                                    applyLightGlobals(state)
                                     loadUrl(state.requestedUrl)
                                     lastLoadedUrl = state.requestedUrl
                                     webView = this
@@ -205,7 +193,6 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                             },
                             update = { wv ->
                                 if (state.requestedUrl != lastLoadedUrl && state.requestedUrl.isNotBlank()) {
-                                    wv.applyLightGlobals(state)
                                     wv.loadUrl(state.requestedUrl)
                                     lastLoadedUrl = state.requestedUrl
                                 }
@@ -317,16 +304,6 @@ private class InputBridge(
     fun onFocus(value: String, label: String) {
         onFocus(value, label)
     }
-}
-
-private fun WebView.applyLightGlobals(state: BrowserUiState) {
-    evaluateJavascript(
-        "window.__lightReaderEnabled = ${state.readerRequested}; " +
-                "window.__lightReaderForced = ${state.readerForced}; " +
-                "window.__lightCssInjectionEnabled = ${state.cssInjectionEnabled}; " +
-                "window.__lightUseDarkTheme = ${state.pageTheme == PageTheme.DARK};",
-        null
-    )
 }
 
 private fun trimUrlPreview(url: String): String =
