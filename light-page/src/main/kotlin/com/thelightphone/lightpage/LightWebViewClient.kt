@@ -26,7 +26,21 @@ class LightWebViewClient(
     private val onState: (WebStateUpdate) -> Unit
 ) : WebViewClient() {
 
+    var currentTheme: PageTheme = PageTheme.DARK
+    var readerRequested: Boolean = true
+    var readerForced: Boolean = false
+    var cssInjectionEnabled: Boolean = true
+
+    fun refreshState(view: WebView, state: BrowserUiState) {
+        currentTheme = state.pageTheme
+        readerRequested = state.readerRequested
+        readerForced = state.readerForced
+        cssInjectionEnabled = state.cssInjectionEnabled
+        injection.refresh(view, state)
+    }
+
     override fun onPageStarted(view: WebView, url: String?, favicon: Bitmap?) {
+        injection.injectBaseStyle(view, currentTheme)
         onState(
             WebStateUpdate(
                 url = url,
@@ -39,7 +53,7 @@ class LightWebViewClient(
     }
 
     override fun onPageCommitVisible(view: WebView, url: String?) {
-        injection.injectBaseStyle(view, PageTheme.DARK)
+        injection.injectBaseStyle(view, currentTheme)
     }
 
     override fun onPageFinished(view: WebView, url: String?) {

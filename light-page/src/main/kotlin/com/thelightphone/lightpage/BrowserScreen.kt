@@ -117,6 +117,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
         val themeColors by LightThemeController.colors.collectAsState()
         val state by viewModel.uiState.collectAsState()
         val keyboardOptionsFlow = rememberKeyboardOptions()
+        var lightClient by remember { mutableStateOf<LightWebViewClient?>(null) }
 
         LaunchedEffect(state.pageTheme) {
             if (state.pageTheme == PageTheme.LIGHT) LightThemeController.setLightTheme()
@@ -182,10 +183,12 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                                         },
                                         "__lightInputBridge"
                                     )
-                                    webViewClient = LightWebViewClient(
+                                    val client = LightWebViewClient(
                                         injection = PageInjector(context.assets),
                                         onState = viewModel::onWebState
                                     )
+                                    lightClient = client
+                                    webViewClient = client
                                     loadUrl(state.requestedUrl)
                                     lastLoadedUrl = state.requestedUrl
                                     webView = this
@@ -198,6 +201,10 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                                 }
                             }
                         )
+
+                        LaunchedEffect(webView, state) {
+                            webView?.let { lightClient?.refreshState(it, state) }
+                        }
 
                         state.error?.let { error ->
                             Box(

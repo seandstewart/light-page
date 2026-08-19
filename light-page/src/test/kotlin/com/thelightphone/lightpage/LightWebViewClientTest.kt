@@ -13,6 +13,7 @@ import android.webkit.WebViewClient
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
+import io.mockk.verifyOrder
 
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
@@ -170,6 +171,47 @@ class LightWebViewClientTest {
         val update = lastUpdate
         assertEquals("https://example.com", update?.url)
         assertFalse(update?.loading == true)
+    }
+
+    @Test
+    fun `onPageStarted injects base style with dark theme`() {
+        val injector = mockk<PageInjector>(relaxed = true)
+        val client = LightWebViewClient(injection = injector, onState = {})
+        val view = webView()
+
+        client.onPageStarted(view, "https://example.com", mockk<Bitmap>())
+
+        verify { injector.injectBaseStyle(view, PageTheme.DARK) }
+    }
+
+    @Test
+    fun `onPageFinished injects reader libraries and page hooks`() {
+        val injector = mockk<PageInjector>(relaxed = true)
+        val client = LightWebViewClient(injection = injector, onState = {})
+        val view = webView()
+
+        client.onPageFinished(view, "https://example.com")
+
+        verifyOrder {
+            injector.injectReaderLibraries(view)
+            injector.injectPageHooks(view)
+        }
+    }
+
+    @Test
+    fun `refreshState updates theme used by onPageStarted`() {
+        val injector = mockk<PageInjector>(relaxed = true)
+        val client = LightWebViewClient(injection = injector, onState = {})
+        val view = webView()
+        val lightState = BrowserUiState(
+            requestedUrl = "https://example.com",
+            pageTheme = PageTheme.LIGHT
+        )
+
+        client.refreshState(view, lightState)
+        client.onPageStarted(view, "https://example.com", mockk<Bitmap>())
+
+        verify { injector.injectBaseStyle(view, PageTheme.LIGHT) }
     }
 
     private var lastError: BrowserError? = null
