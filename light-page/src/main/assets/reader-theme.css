@@ -1,4 +1,4 @@
-:root {
+:root, :host {
   color-scheme: light;
   --light-reader-bg: #ffffff;
   --light-reader-fg: #000000;
@@ -9,7 +9,7 @@
   --light-reader-line-height: 1.5;
 }
 
-html.__light_dark_mode {
+html.__light_dark_mode, :host(.__light_dark_mode) {
   color-scheme: dark;
   --light-reader-bg: #000000;
   --light-reader-fg: #ffffff;

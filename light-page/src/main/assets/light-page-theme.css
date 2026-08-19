@@ -1,4 +1,4 @@
-:root {
+:root, :host {
   color-scheme: light;
   --light-bg: #ffffff;
   --light-fg: #000000;
@@ -9,7 +9,7 @@
   --light-scale: 0.85;
 }
 
-html.__light_dark_mode {
+html.__light_dark_mode, :host(.__light_dark_mode) {
   color-scheme: dark;
   --light-bg: #000000;
   --light-fg: #ffffff;

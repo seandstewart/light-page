@@ -284,6 +284,7 @@
         const el = all[i];
         const shadow = el.shadowRoot;
         if (shadow && shadow.mode === "open") {
+          el.classList.toggle("__light_dark_mode", window.__lightUseDarkTheme);
           let s = shadow.getElementById("__light_base_theme");
           if (!s) {
             s = document.createElement("style");
