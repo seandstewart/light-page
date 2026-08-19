@@ -26,7 +26,7 @@ class BrowserViewModel(
     private inline fun updateState(transform: (BrowserUiState) -> BrowserUiState) {
         _uiState.update { current ->
             val next = transform(current)
-            next.copy(statusScreenVisible = next.loading)
+            next.copy(statusScreenVisible = next.loading && next.error == null)
         }
     }
 

@@ -113,7 +113,7 @@ class BrowserViewModelTest {
     }
 
     @Test
-    fun `onWebState with reader error sets error and readerApplied false`() = runTest {
+    fun `onWebState with reader error sets error and hides status overlay`() = runTest {
         val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.onWebState(
             WebStateUpdate(
@@ -124,6 +124,21 @@ class BrowserViewModelTest {
         val state = viewModel.uiState.first()
         assertFalse(state.readerApplied)
         assertEquals(BrowserError.Reader(ReaderErrorCode.TOO_SHORT), state.error)
+        assertFalse(state.statusScreenVisible)
+    }
+
+    @Test
+    fun `onWebState with loading true and error hides status overlay`() = runTest {
+        val viewModel = BrowserViewModel(preferences = preferences)
+        viewModel.onWebState(WebStateUpdate(loading = true))
+        assertTrue(viewModel.uiState.first().statusScreenVisible)
+        viewModel.onWebState(
+            WebStateUpdate(
+                loading = true,
+                error = BrowserError.Reader(ReaderErrorCode.NOT_ELIGIBLE)
+            )
+        )
+        assertFalse(viewModel.uiState.first().statusScreenVisible)
     }
 
     @Test
