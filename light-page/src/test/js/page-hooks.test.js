@@ -159,7 +159,7 @@ test("CSS injection can be toggled", () => {
   }
 });
 
-test("reader is enabled by default and can be toggled", () => {
+test("reader is enabled by default and can be toggled", async () => {
   const html = `
     <!DOCTYPE html>
     <html><head><title>Test</title></head><body>
@@ -176,7 +176,7 @@ test("reader is enabled by default and can be toggled", () => {
     window.__lightSetReaderEnabled(false);
     assert.strictEqual(window.__lightReaderEnabled, false, "reader should be disabled");
     assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "original should be visible");
-    window.__lightSetReaderEnabled(true);
+    await window.__lightSetReaderEnabled(true);
     assert.strictEqual(window.__lightReaderEnabled, true, "reader should be re-enabled");
     assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), true, "reader should be applied");
   } finally {
@@ -230,7 +230,7 @@ test("reader skips ineligible pages", () => {
   }
 });
 
-test("forced reader mode bypasses eligibility heuristic", () => {
+test("forced reader mode bypasses eligibility heuristic", async () => {
   const html = `
     <!DOCTYPE html>
     <html><head><title>Search</title></head><body>
@@ -244,7 +244,7 @@ test("forced reader mode bypasses eligibility heuristic", () => {
   const { window, document, close } = bootHooks(html, "https://example.com/search");
   try {
     assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "auto-detect should skip ineligible page");
-    window.__lightSetReaderEnabled(true);
+    await window.__lightSetReaderEnabled(true);
     assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), true, "forced reader should apply despite ineligible page");
   } finally {
     close();
@@ -473,6 +473,170 @@ test("input label falls back to placeholder", () => {
 
     document.getElementById("b").focus();
     assert.strictEqual(receivedLabel, "Placeholder Hint", "placeholder should be used as fallback");
+  } finally {
+    close();
+  }
+});
+
+test("reader reports NOT_ELIGIBLE for ineligible pages", async () => {
+  const html = `<!DOCTYPE html><html><head><title>App</title></head><body><div id="root"></div></body></html>`;
+  const { window, document, close } = bootHooks(html, "https://example.com/search");
+  try {
+    const errors = [];
+    const appliedStates = [];
+    window.__lightReaderBridge = {
+      onReaderError: (reason) => errors.push(reason),
+      onReaderApplied: (applied) => appliedStates.push(applied),
+    };
+
+    await window.__lightToolRefresh();
+    errors.length = 0;
+    appliedStates.length = 0;
+
+    await window.__lightSetReaderEnabled(true);
+
+    assert.strictEqual(errors[errors.length - 1], "NOT_ELIGIBLE", "should report NOT_ELIGIBLE");
+    assert.strictEqual(appliedStates[appliedStates.length - 1], false, "should report applied false");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "original DOM should be visible");
+  } finally {
+    close();
+  }
+});
+
+test("reader reports TOO_SHORT for short content", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Short</title></head><body>
+      <article>
+        <h1>Short Article</h1>
+        <p>Only a little text.</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    const errors = [];
+    const appliedStates = [];
+    window.__lightReaderBridge = {
+      onReaderError: (reason) => errors.push(reason),
+      onReaderApplied: (applied) => appliedStates.push(applied),
+    };
+
+    await window.__lightToolRefresh();
+    errors.length = 0;
+    appliedStates.length = 0;
+
+    await window.__lightSetReaderEnabled(true);
+
+    assert.strictEqual(errors[errors.length - 1], "TOO_SHORT", "should report TOO_SHORT");
+    assert.strictEqual(appliedStates[appliedStates.length - 1], false, "should report applied false");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "original DOM should be visible");
+  } finally {
+    close();
+  }
+});
+
+test("reader reports INTERACTIVE for form-heavy content", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Interactive</title></head><body>
+      <article>
+        <h1>Survey</h1>
+        <form>
+          <label for="q1">${"Question one with a lot of text so the article is long. ".repeat(15)}</label>
+          <input id="q1" type="text">
+          <label for="q2">${"Question two with a lot of text so the article is long. ".repeat(15)}</label>
+          <input id="q2" type="text">
+          <label for="q3">${"Question three with a lot of text so the article is long. ".repeat(15)}</label>
+          <textarea id="q3"></textarea>
+          <button type="submit">Send</button>
+        </form>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    const errors = [];
+    const appliedStates = [];
+    window.__lightReaderBridge = {
+      onReaderError: (reason) => errors.push(reason),
+      onReaderApplied: (applied) => appliedStates.push(applied),
+    };
+
+    await window.__lightToolRefresh();
+    errors.length = 0;
+    appliedStates.length = 0;
+
+    await window.__lightSetReaderEnabled(true);
+
+    assert.strictEqual(errors[errors.length - 1], "INTERACTIVE", "should report INTERACTIVE");
+    assert.strictEqual(appliedStates[appliedStates.length - 1], false, "should report applied false");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "original DOM should be visible");
+  } finally {
+    close();
+  }
+});
+
+test("reader retries when parse initially returns null", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Retry</title></head><body>
+      <article>
+        <h1>Retry Article</h1>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    let parseCount = 0;
+    const realReadability = window.Readability;
+    window.Readability = class MockReadability {
+      constructor(doc) {
+        this.doc = doc;
+      }
+      parse() {
+        parseCount++;
+        if (parseCount === 1) return null;
+        return new realReadability(this.doc).parse();
+      }
+    };
+
+    await window.__lightSetReaderEnabled(true);
+
+    assert.strictEqual(parseCount, 2, "should retry after first null parse");
+    assert.ok(document.getElementById("__light_reader_root"), "reader should be applied after retry");
+  } finally {
+    close();
+  }
+});
+
+test("__lightSetState updates state and refreshes", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>State</title></head><body>
+      <article>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    window.__lightSetState({
+      readerRequested: true,
+      readerForced: true,
+      cssInjectionEnabled: true,
+      pageTheme: "DARK",
+    });
+    await window.__lightToolRefresh();
+
+    assert.strictEqual(window.__lightUseDarkTheme, true, "dark theme flag should be set");
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), true, "dark mode class should be applied");
+    assert.ok(document.getElementById("__light_reader_root"), "reader should be applied after state refresh");
   } finally {
     close();
   }

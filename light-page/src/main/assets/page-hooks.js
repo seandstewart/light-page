@@ -17,6 +17,8 @@
   const HIDE_CLASS = "__light_reader_hidden";
   const MIN_PROSE_LENGTH = 400;
   const MIN_PARAGRAPHS = 3;
+  const MAX_ATTEMPTS = 3;
+  const RETRY_DELAY_MS = 500;
 
   let timer = null;
   const schedule = () => {
@@ -123,22 +125,42 @@
     }
   };
 
-  const applyReaderMode = (force = false) => {
-    if (!force && !isReaderEligible()) {
-      restoreOriginal();
-      return;
+  const reportReaderError = (reason) => {
+    if (window.__lightReaderBridge && window.__lightReaderBridge.onReaderError) {
+      window.__lightReaderBridge.onReaderError(reason);
     }
+  };
+
+  const applyReaderMode = async (force = false) => {
     restoreOriginal();
 
-    if (typeof Readability === "undefined" || typeof DOMPurify === "undefined") {
-      reportReaderApplied();
+    if (!force && !isReaderEligible()) {
+      reportReaderError("NOT_ELIGIBLE");
+      reportReaderApplied(false);
       return;
     }
 
+    if (typeof Readability === "undefined" || typeof DOMPurify === "undefined") {
+      reportReaderError("LIBRARY_MISSING");
+      reportReaderApplied(false);
+      return;
+    }
+
+    let article = null;
     try {
-      const article = new Readability(document.cloneNode(true)).parse();
-      if (!article || !article.content || article.length < MIN_PROSE_LENGTH) {
-        reportReaderApplied();
+      let attempt = 0;
+      while (attempt < MAX_ATTEMPTS) {
+        article = new Readability(document.cloneNode(true)).parse();
+        if (article && article.content) break;
+        attempt++;
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+        }
+      }
+
+      if (!article || !article.content) {
+        reportReaderError("NOT_ELIGIBLE");
+        reportReaderApplied(false);
         return;
       }
 
@@ -149,7 +171,8 @@
           "strong", "b", "em", "i", "blockquote", "pre", "code", "hr", "br",
           "img", "figure", "figcaption", "picture", "source",
           "table", "thead", "tbody", "tr", "th", "td",
-          "sup", "sub", "small", "dl", "dt", "dd"
+          "sup", "sub", "small", "dl", "dt", "dd",
+          "form", "input", "textarea", "select", "button"
         ],
         ALLOWED_ATTR: ["href", "src", "alt", "title", "id", "class", "name", "dir", "lang", "colspan", "rowspan", "start", "type", "value"],
         ALLOW_DATA_ATTR: false
@@ -158,8 +181,15 @@
       const temp = document.createElement("div");
       temp.innerHTML = clean;
       const cleanText = (temp.textContent || "").trim();
-      if (cleanText.length < MIN_PROSE_LENGTH || hasSignificantInteractiveContent(clean)) {
-        reportReaderApplied();
+      if (cleanText.length < MIN_PROSE_LENGTH) {
+        reportReaderError("TOO_SHORT");
+        reportReaderApplied(false);
+        return;
+      }
+
+      if (hasSignificantInteractiveContent(clean)) {
+        reportReaderError("INTERACTIVE");
+        reportReaderApplied(false);
         return;
       }
 
@@ -191,7 +221,8 @@
       window.__lightReaderApplied = true;
       reportReaderApplied();
     } catch (e) {
-      restoreOriginal();
+      reportReaderError("EXCEPTION");
+      reportReaderApplied(false);
     }
   };
 
@@ -206,8 +237,9 @@
   window.__lightSetReaderEnabled = (on) => {
     window.__lightReaderEnabled = !!on;
     window.__lightReaderForced = true;
-    if (on) applyReaderMode(true);
-    else restoreOriginal();
+    if (on) return applyReaderMode(true);
+    restoreOriginal();
+    return Promise.resolve();
   };
 
   const applySystemTheme = () => {
@@ -237,10 +269,10 @@
       ensureStyle("__light_reader_theme", __READER_CSS__);
     }
     if (window.__lightCssInjectionEnabled && window.__lightReaderEnabled) {
-      applyReaderMode(window.__lightReaderForced);
-    } else {
-      restoreOriginal();
+      return applyReaderMode(window.__lightReaderForced);
     }
+    restoreOriginal();
+    return Promise.resolve();
   };
 
   // Conservative open-shadow-root theming pass (M2.7).
@@ -268,8 +300,9 @@
 
   const originalRefresh = window.__lightToolRefresh;
   window.__lightToolRefresh = () => {
-    originalRefresh();
+    const result = originalRefresh();
     themeShadowRoots();
+    return result;
   };
 
   let activeInputElement = null;
@@ -345,6 +378,14 @@
       activeInputElement.blur();
       activeInputElement = null;
     }
+  };
+
+  window.__lightSetState = (state) => {
+    window.__lightReaderEnabled = state.readerRequested;
+    window.__lightReaderForced = state.readerForced;
+    window.__lightCssInjectionEnabled = state.cssInjectionEnabled;
+    window.__lightUseDarkTheme = state.pageTheme === "DARK";
+    window.__lightToolRefresh();
   };
 
   window.__lightToolRefresh();
