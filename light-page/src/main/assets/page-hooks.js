@@ -15,8 +15,8 @@
 
   const READER_ROOT_ID = "__light_reader_root";
   const HIDE_CLASS = "__light_reader_hidden";
-  const MIN_PROSE_LENGTH = 400;
-  const MIN_PARAGRAPHS = 3;
+  const MIN_PROSE_LENGTH = 0;
+  const MIN_PARAGRAPHS = 0;
   const MAX_ATTEMPTS = 3;
   const RETRY_DELAY_MS = 500;
 

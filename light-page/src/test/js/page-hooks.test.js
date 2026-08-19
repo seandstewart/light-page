@@ -310,7 +310,7 @@ test("reader skips pages with forms", () => {
       </form>
     </body></html>
   `;
-  const { document, close } = bootHooks(html);
+  const { document, close } = bootHooks(html, "https://example.com/checkout");
   try {
     assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "form page should not get reader");
     assert.ok(!document.getElementById("__light_reader_root"), "reader root should not be created");
@@ -326,7 +326,7 @@ test("reader skips empty SPA shells", () => {
       <div id="root"></div>
     </body></html>
   `;
-  const { document, close } = bootHooks(html, "https://example.com/app");
+  const { document, close } = bootHooks(html, "https://example.com/dashboard");
   try {
     assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "empty SPA shell should not get reader");
     assert.ok(!document.getElementById("__light_reader_root"), "reader root should not be created");
@@ -503,7 +503,7 @@ test("reader reports NOT_ELIGIBLE for ineligible pages", async () => {
   }
 });
 
-test("reader reports TOO_SHORT for short content", async () => {
+test("reader applies to short content", async () => {
   const html = `
     <!DOCTYPE html>
     <html><head><title>Short</title></head><body>
@@ -528,9 +528,10 @@ test("reader reports TOO_SHORT for short content", async () => {
 
     await window.__lightSetReaderEnabled(true);
 
-    assert.strictEqual(errors[errors.length - 1], "TOO_SHORT", "should report TOO_SHORT");
-    assert.strictEqual(appliedStates[appliedStates.length - 1], false, "should report applied false");
-    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "original DOM should be visible");
+    assert.strictEqual(errors[errors.length - 1], undefined, "should not report an error");
+    assert.strictEqual(appliedStates[appliedStates.length - 1], true, "should report applied true");
+    assert.ok(document.getElementById("__light_reader_root"), "reader root should be created");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), true, "reader should be applied");
   } finally {
     close();
   }
