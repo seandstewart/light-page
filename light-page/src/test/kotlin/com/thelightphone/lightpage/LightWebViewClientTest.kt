@@ -12,33 +12,18 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.mockkStatic
-import io.mockk.unmockkStatic
 import io.mockk.verify
-import org.json.JSONObject
-import org.junit.jupiter.api.AfterEach
+
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertNull
 import org.junit.jupiter.api.Assertions.assertTrue
-import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 
 class LightWebViewClientTest {
 
     private val injection =
-        ScriptInjection(baseCss = "", readerCss = "", readabilityJs = "", purifyJs = "", hooksJs = "")
-
-    @BeforeEach
-    fun setup() {
-        mockkStatic(JSONObject::class)
-        every { JSONObject.quote(any<String>()) } returns "\"encoded\""
-    }
-
-    @AfterEach
-    fun tearDown() {
-        unmockkStatic(JSONObject::class)
-    }
+        PageInjector(baseCss = "", readerCss = "", readabilityJs = "", purifyJs = "", hooksJs = "")
 
     @Test
     fun `tls error is surfaced`() {

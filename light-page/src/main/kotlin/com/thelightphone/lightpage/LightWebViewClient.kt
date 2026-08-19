@@ -22,7 +22,7 @@ import android.webkit.WebViewClient
  * do not overwrite real errors when [onPageFinished] fires.
  */
 class LightWebViewClient(
-    private val injection: ScriptInjection,
+    private val injection: PageInjector,
     private val onState: (WebStateUpdate) -> Unit
 ) : WebViewClient() {
 
@@ -39,12 +39,12 @@ class LightWebViewClient(
     }
 
     override fun onPageCommitVisible(view: WebView, url: String?) {
-        injection.injectBaseTheme(view)
+        injection.injectBaseStyle(view, PageTheme.DARK)
     }
 
     override fun onPageFinished(view: WebView, url: String?) {
-        injection.injectLibraries(view)
-        injection.injectBootScript(view)
+        injection.injectReaderLibraries(view)
+        injection.injectPageHooks(view)
         onState(
             WebStateUpdate(
                 url = url,

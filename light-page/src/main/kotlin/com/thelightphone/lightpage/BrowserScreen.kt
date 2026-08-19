@@ -194,7 +194,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                                         "__lightInputBridge"
                                     )
                                     webViewClient = LightWebViewClient(
-                                        injection = ScriptInjection(context.assets),
+                                        injection = PageInjector(context.assets),
                                         onState = viewModel::onWebState
                                     )
                                     applyLightGlobals(state)
