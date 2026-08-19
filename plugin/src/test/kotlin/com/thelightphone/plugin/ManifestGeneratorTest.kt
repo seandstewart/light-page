@@ -33,10 +33,12 @@ class ManifestGeneratorTest {
 
     @Test
     fun `each permission becomes one uses-permission element`() {
-        val xml = render(permissions = listOf(
-            "android.permission.INTERNET",
-            "android.permission.CAMERA",
-        ))
+        val xml = render(
+            permissions = listOf(
+                "android.permission.INTERNET",
+                "android.permission.CAMERA",
+            )
+        )
         assertTrue(xml.contains("""<uses-permission android:name="android.permission.INTERNET" />"""))
         assertTrue(xml.contains("""<uses-permission android:name="android.permission.CAMERA" />"""))
     }
@@ -154,5 +156,23 @@ class ManifestGeneratorTest {
         assertFalse(xml.contains("android.permission.FOREGROUND_SERVICE"))
         assertFalse(xml.contains("foregroundServiceType"))
         assertFalse(xml.contains("CAPABILITY_DETACHED_AUDIO"))
+    }
+
+    @Test
+    fun `browser capability emits http and https intent filters`() {
+        val xml = render(capabilities = listOf("browser"))
+
+        assertTrue(xml.contains("""<action android:name="android.intent.action.VIEW" />"""))
+        assertTrue(xml.contains("""<category android:name="android.intent.category.DEFAULT" />"""))
+        assertTrue(xml.contains("""<category android:name="android.intent.category.BROWSABLE" />"""))
+        assertTrue(xml.contains("""<data android:scheme="http" />"""))
+        assertTrue(xml.contains("""<data android:scheme="https" />"""))
+    }
+
+    @Test
+    fun `browser capability is absent without the capability`() {
+        val xml = render()
+
+        assertFalse(xml.contains("android.intent.category.BROWSABLE"))
     }
 }

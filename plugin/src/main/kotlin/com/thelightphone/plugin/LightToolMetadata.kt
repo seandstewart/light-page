@@ -112,7 +112,7 @@ data class LightToolMetadata(
             if (value == null) return null
             require(value in LightToolPolicy.ALLOWED_ORIENTATIONS) {
                 "tool.orientation must be one of: " +
-                    LightToolPolicy.ALLOWED_ORIENTATIONS.sorted().joinToString() + "; got '$value'"
+                        LightToolPolicy.ALLOWED_ORIENTATIONS.sorted().joinToString() + "; got '$value'"
             }
             return value
         }
@@ -133,7 +133,9 @@ data class LightToolMetadata(
                     )
                 }
                 require(item in LightToolPolicy.ALLOWED_PERMISSIONS) {
-                    "permission not allowed: $item\nallowed: ${LightToolPolicy.ALLOWED_PERMISSIONS.sorted().joinToString()}"
+                    "permission not allowed: $item\nallowed: ${
+                        LightToolPolicy.ALLOWED_PERMISSIONS.sorted().joinToString()
+                    }"
                 }
             }
             return list
@@ -145,7 +147,9 @@ data class LightToolMetadata(
             for (item in list) {
                 require(seen.add(item)) { "duplicate capability: $item" }
                 require(item in LightToolPolicy.ALLOWED_CAPABILITIES) {
-                    "capability not allowed: $item\nallowed: ${LightToolPolicy.ALLOWED_CAPABILITIES.sorted().joinToString()}"
+                    "capability not allowed: $item\nallowed: ${
+                        LightToolPolicy.ALLOWED_CAPABILITIES.sorted().joinToString()
+                    }"
                 }
             }
             return list
@@ -188,8 +192,9 @@ object LightToolPolicy {
     )
 
     const val DETACHED_AUDIO: String = "detached-audio"
+    const val BROWSER: String = "browser"
 
-    val ALLOWED_CAPABILITIES: Set<String> = setOf(DETACHED_AUDIO)
+    val ALLOWED_CAPABILITIES: Set<String> = setOf(DETACHED_AUDIO, BROWSER)
 
     /**
      * Permissions a capability contributes to the generated manifest. These are

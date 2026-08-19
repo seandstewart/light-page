@@ -18,10 +18,10 @@ object ManifestGenerator {
         // A capability declares what the tool does and the permissions it needs
         // follow from that, so they are unioned in here rather than written by the tool.
         val permissions = (
-            metadata.permissions + metadata.capabilities.flatMap {
-                LightToolPolicy.CAPABILITY_IMPLIED_PERMISSIONS[it].orEmpty()
-            }
-        ).distinct()
+                metadata.permissions + metadata.capabilities.flatMap {
+                    LightToolPolicy.CAPABILITY_IMPLIED_PERMISSIONS[it].orEmpty()
+                }
+                ).distinct()
         for (perm in permissions) {
             appendLine("""    <uses-permission android:name="${xmlAttr(perm)}" />""")
         }
@@ -61,6 +61,24 @@ object ManifestGenerator {
                 """        </service>""",
             )
         )
+        val browserIntentFilter = marginBlock(
+            if (LightToolPolicy.BROWSER !in metadata.capabilities) emptyList() else listOf(
+                """            <intent-filter>""",
+                """                <action android:name="android.intent.action.VIEW" />""",
+                """                <category android:name="android.intent.category.DEFAULT" />""",
+                """                <category android:name="android.intent.category.BROWSABLE" />""",
+                """                <data android:scheme="http" />""",
+                """                <data android:scheme="https" />""",
+                """            </intent-filter>""",
+            )
+        )
+        val browserQuery = marginBlock(
+            if (LightToolPolicy.BROWSER !in metadata.capabilities) emptyList() else listOf(
+                """        <intent>""",
+                """            <action android:name="android.intent.action.VIEW" />""",
+                """        </intent>""",
+            )
+        )
         appendLine(
             """
             |    <application
@@ -78,7 +96,7 @@ object ManifestGenerator {
             |            <intent-filter>
             |                <action android:name="android.intent.action.MAIN" />
             |                <category android:name="android.intent.category.LAUNCHER" />
-            |            </intent-filter>
+            |            </intent-filter>$browserIntentFilter
             |        </activity>
             |        <receiver
             |            android:name="com.thelightphone.sdk.LightSdkReceiver"
@@ -96,7 +114,7 @@ object ManifestGenerator {
             |    <queries>
             |        <intent>
             |            <action android:name="com.thelightphone.sdk.ACTION_SDK_MARKER" />
-            |        </intent>
+            |        </intent>$browserQuery
             |    </queries>
             |</manifest>""".trimMargin()
         )
