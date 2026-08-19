@@ -1,5 +1,6 @@
 package com.thelightphone.lightpage
 
+import android.content.res.AssetManager
 import android.webkit.WebView
 import io.mockk.every
 import io.mockk.mockk
@@ -9,6 +10,7 @@ import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
+import java.io.ByteArrayInputStream
 
 class PageInjectorTest {
 
@@ -211,5 +213,24 @@ class PageInjectorTest {
         assertTrue(script.contains("\"readerApplied\":true"))
         assertTrue(script.contains("\"cssInjectionEnabled\":true"))
         assertTrue(script.contains("\"pageTheme\":\"DARK\""))
+    }
+
+    @Test
+    fun `constructor loads all five assets from AssetManager`() {
+        val assetManager = mockk<AssetManager>()
+        every { assetManager.open(any<String>()) } answers {
+            ByteArrayInputStream(arg<String>(0).toByteArray())
+        }
+
+        val injector = PageInjector(assetManager)
+        val view = mockk<WebView>(relaxed = true)
+        injector.injectBaseStyle(view, PageTheme.DARK)
+
+        verify { assetManager.open("light-page-theme.css") }
+        verify { assetManager.open("reader-theme.css") }
+        verify { assetManager.open("readability.js") }
+        verify { assetManager.open("purify.js") }
+        verify { assetManager.open("page-hooks.js") }
+        verify { view.evaluateJavascript(any<String>(), null) }
     }
 }
