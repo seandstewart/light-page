@@ -154,85 +154,95 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                             .fillMaxWidth()
                             .weight(1f)
                     ) {
-                        AndroidView(
-                            modifier = Modifier.fillMaxSize(),
-                            factory = { context ->
-                                WebView(context).apply {
-                                    settings.apply {
-                                        javaScriptEnabled = true
-                                        domStorageEnabled = true
-                                        allowFileAccess = false
-                                        allowContentAccess = false
-                                        setSupportMultipleWindows(false)
-                                        javaScriptCanOpenWindowsAutomatically = false
-                                        mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
-                                        useWideViewPort = true
-                                        loadWithOverviewMode = true
-                                    }
-                                    setBackgroundColor(android.graphics.Color.WHITE)
-                                    webChromeClient = WebChromeClient()
-                                    addJavascriptInterface(
-                                        ReaderStateBridge(
-                                            onReaderApplied = { applied ->
-                                                viewModel.onWebState(WebStateUpdate(readerApplied = applied))
-                                            },
-                                            onReaderError = { reason ->
-                                                viewModel.onWebState(
-                                                    WebStateUpdate(
-                                                        readerApplied = false,
-                                                        error = BrowserError.Reader(parseReaderError(reason))
+                        if (state.requestedUrl.isBlank()) {
+                            EmptyStatePrompt(
+                                onTap = { viewModel.showUrlDrawer(true) }
+                            )
+                        } else {
+                            AndroidView(
+                                modifier = Modifier.fillMaxSize(),
+                                factory = { context ->
+                                    WebView(context).apply {
+                                        settings.apply {
+                                            javaScriptEnabled = true
+                                            domStorageEnabled = true
+                                            allowFileAccess = false
+                                            allowContentAccess = false
+                                            setSupportMultipleWindows(false)
+                                            javaScriptCanOpenWindowsAutomatically = false
+                                            mixedContentMode = WebSettings.MIXED_CONTENT_NEVER_ALLOW
+                                            useWideViewPort = true
+                                            loadWithOverviewMode = true
+                                        }
+                                        setBackgroundColor(android.graphics.Color.WHITE)
+                                        webChromeClient = WebChromeClient()
+                                        addJavascriptInterface(
+                                            ReaderStateBridge(
+                                                onReaderApplied = { applied ->
+                                                    viewModel.onWebState(WebStateUpdate(readerApplied = applied))
+                                                },
+                                                onReaderError = { reason ->
+                                                    viewModel.onWebState(
+                                                        WebStateUpdate(
+                                                            readerApplied = false,
+                                                            error = BrowserError.Reader(parseReaderError(reason))
+                                                        )
                                                     )
-                                                )
-                                            }
-                                        ),
-                                        "__lightReaderBridge"
-                                    )
-                                    addJavascriptInterface(
-                                        InputBridge { value, label ->
-                                            viewModel.openWebInput(value, label)
-                                        },
-                                        "__lightInputBridge"
-                                    )
-                                    val client = LightWebViewClient(
-                                        injection = PageInjector(context.assets),
-                                        onState = viewModel::onWebState
-                                    )
-                                    lightClient = client
-                                    webViewClient = client
-                                    loadUrl(state.requestedUrl)
-                                    lastLoadedUrl = state.requestedUrl
-                                    webView = this
+                                                }
+                                            ),
+                                            "__lightReaderBridge"
+                                        )
+                                        addJavascriptInterface(
+                                            InputBridge { value, label ->
+                                                viewModel.openWebInput(value, label)
+                                            },
+                                            "__lightInputBridge"
+                                        )
+                                        val client = LightWebViewClient(
+                                            injection = PageInjector(context.assets),
+                                            onState = viewModel::onWebState
+                                        )
+                                        lightClient = client
+                                        webViewClient = client
+                                        loadUrl(state.requestedUrl)
+                                        lastLoadedUrl = state.requestedUrl
+                                        webView = this
+                                    }
+                                },
+                                update = { wv ->
+                                    if (state.requestedUrl != lastLoadedUrl && state.requestedUrl.isNotBlank()) {
+                                        wv.loadUrl(state.requestedUrl)
+                                        lastLoadedUrl = state.requestedUrl
+                                    }
                                 }
-                            },
-                            update = { wv ->
-                                if (state.requestedUrl != lastLoadedUrl && state.requestedUrl.isNotBlank()) {
-                                    wv.loadUrl(state.requestedUrl)
-                                    lastLoadedUrl = state.requestedUrl
+                            )
+
+                            LaunchedEffect(webView, state) {
+                                webView?.let { lightClient?.refreshState(it, state) }
+                            }
+
+                            state.error?.let { error ->
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(LightThemeTokens.colors.background)
+                                        .padding(2f.gridUnitsAsDp())
+                                        .pointerInput(Unit) {
+                                            awaitPointerEventScope {
+                                                while (true) awaitPointerEvent()
+                                            }
+                                        },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    LightText(
+                                        text = error.message(),
+                                        variant = LightTextVariant.Copy
+                                    )
                                 }
                             }
-                        )
 
-                        LaunchedEffect(webView, state) {
-                            webView?.let { lightClient?.refreshState(it, state) }
-                        }
-
-                        state.error?.let { error ->
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(LightThemeTokens.colors.background)
-                                    .padding(2f.gridUnitsAsDp())
-                                    .pointerInput(Unit) {
-                                        awaitPointerEventScope {
-                                            while (true) awaitPointerEvent()
-                                        }
-                                    },
-                                contentAlignment = Alignment.Center
-                            ) {
-                                LightText(
-                                    text = error.message(),
-                                    variant = LightTextVariant.Copy
-                                )
+                            if (state.statusScreenVisible) {
+                                StatusOverlay(state)
                             }
                         }
                     }

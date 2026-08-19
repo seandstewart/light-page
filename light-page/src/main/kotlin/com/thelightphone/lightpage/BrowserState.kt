@@ -19,6 +19,7 @@ data class BrowserUiState(
     val requestedUrl: String,
     val committedUrl: String? = null,
     val loading: Boolean = false,
+    val statusScreenVisible: Boolean = false,
     val canGoBack: Boolean = false,
     val canGoForward: Boolean = false,
     val readerRequested: Boolean = true,

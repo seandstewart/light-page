@@ -371,6 +371,45 @@ class BrowserViewModelTest {
         assertTrue(state.urlEditorVisible)
     }
 
+    @Test
+    fun `onWebState with loading true sets statusScreenVisible true`() = runTest {
+        val viewModel = BrowserViewModel(preferences = preferences)
+        viewModel.onWebState(WebStateUpdate(loading = true))
+        val state = viewModel.uiState.first()
+        assertTrue(state.loading)
+        assertTrue(state.statusScreenVisible)
+    }
+
+    @Test
+    fun `onWebState with loading false clears statusScreenVisible`() = runTest {
+        val viewModel = BrowserViewModel(preferences = preferences)
+        viewModel.onWebState(WebStateUpdate(loading = true))
+        viewModel.onWebState(WebStateUpdate(loading = false))
+        val state = viewModel.uiState.first()
+        assertFalse(state.loading)
+        assertFalse(state.statusScreenVisible)
+    }
+
+    @Test
+    fun `submitUrl sets statusScreenVisible true`() = runTest {
+        val viewModel = BrowserViewModel(preferences = preferences, initialUrl = "")
+        viewModel.submitUrl("https://example.com")
+        val state = viewModel.uiState.first()
+        assertEquals("https://example.com", state.requestedUrl)
+        assertTrue(state.loading)
+        assertTrue(state.statusScreenVisible)
+    }
+
+    @Test
+    fun `submitUrl with empty string keeps statusScreenVisible false`() = runTest {
+        val viewModel = BrowserViewModel(preferences = preferences, initialUrl = "")
+        viewModel.submitUrl("")
+        val state = viewModel.uiState.first()
+        assertEquals("", state.requestedUrl)
+        assertFalse(state.loading)
+        assertFalse(state.statusScreenVisible)
+    }
+
     private class FakeDataStore : DataStore<Preferences> {
         private val current = MutableStateFlow(emptyPreferences())
 

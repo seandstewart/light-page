@@ -23,6 +23,13 @@ class BrowserViewModel(
     )
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
 
+    private inline fun updateState(transform: (BrowserUiState) -> BrowserUiState) {
+        _uiState.update { current ->
+            val next = transform(current)
+            next.copy(statusScreenVisible = next.loading)
+        }
+    }
+
     init {
         // Set the initial Light theme before the first composition so the top bar
         // and drawer backgrounds match the persisted/default state instead of
@@ -50,7 +57,7 @@ class BrowserViewModel(
 
                 @Suppress("UNCHECKED_CAST")
                 val recentUrls = values[5] as List<String>
-                _uiState.update { current ->
+                updateState { current ->
                     current.copy(
                         requestedUrl = if (lastUrl != null && current.requestedUrl != lastUrl) lastUrl else current.requestedUrl,
                         readerRequested = readerEnabled,
@@ -65,7 +72,7 @@ class BrowserViewModel(
     }
 
     fun onWebState(update: WebStateUpdate) {
-        _uiState.update { current ->
+        updateState { current ->
             current.copy(
                 committedUrl = update.url ?: current.committedUrl,
                 loading = update.loading,
@@ -83,7 +90,7 @@ class BrowserViewModel(
 
     fun toggleReader() {
         val next = !_uiState.value.readerRequested
-        _uiState.update { it.copy(readerRequested = next, readerForced = true) }
+        updateState { it.copy(readerRequested = next, readerForced = true) }
         viewModelScope.launch {
             preferences.setReaderEnabled(next)
             preferences.setReaderForced(true)
@@ -92,20 +99,20 @@ class BrowserViewModel(
 
     fun toggleCssInjection() {
         val next = !_uiState.value.cssInjectionEnabled
-        _uiState.update { it.copy(cssInjectionEnabled = next) }
+        updateState { it.copy(cssInjectionEnabled = next) }
         viewModelScope.launch { preferences.setCssInjectionEnabled(next) }
     }
 
     fun setPageTheme(theme: PageTheme) {
-        _uiState.update { it.copy(pageTheme = theme) }
+        updateState { it.copy(pageTheme = theme) }
         viewModelScope.launch { preferences.setPageTheme(theme) }
     }
 
-    fun showMenu(visible: Boolean) = _uiState.update { it.copy(menuVisible = visible) }
+    fun showMenu(visible: Boolean) = updateState { it.copy(menuVisible = visible) }
 
-    fun showUrlDrawer(visible: Boolean) = _uiState.update { it.copy(urlDrawerVisible = visible) }
+    fun showUrlDrawer(visible: Boolean) = updateState { it.copy(urlDrawerVisible = visible) }
 
-    fun showUrlEditor(mode: UrlEditorMode) = _uiState.update {
+    fun showUrlEditor(mode: UrlEditorMode) = updateState {
         it.copy(
             menuVisible = false,
             urlDrawerVisible = false,
@@ -118,7 +125,7 @@ class BrowserViewModel(
         )
     }
 
-    fun closeUrlEditor() = _uiState.update {
+    fun closeUrlEditor() = updateState {
         it.copy(
             urlEditorVisible = false,
             urlEditorMode = UrlEditorMode.Add,
@@ -133,7 +140,7 @@ class BrowserViewModel(
             return
         }
         var persisted: List<String> = emptyList()
-        _uiState.update { current ->
+        updateState { current ->
             if (index !in current.recentUrls.indices) {
                 current.copy(urlEditorVisible = false)
             } else {
@@ -153,27 +160,28 @@ class BrowserViewModel(
         val updated = _uiState.value.recentUrls.toMutableList().apply {
             if (index in indices) removeAt(index)
         }
-        _uiState.update { current ->
+        updateState { current ->
             current.copy(recentUrls = updated)
         }
         viewModelScope.launch { preferences.setRecentUrls(updated) }
     }
 
     fun openWebInput(value: String, label: String) {
-        _uiState.update { it.copy(webInputEditor = WebInputEditorState(value, label)) }
+        updateState { it.copy(webInputEditor = WebInputEditorState(value, label)) }
     }
 
     fun closeWebInput() {
-        _uiState.update { it.copy(webInputEditor = null) }
+        updateState { it.copy(webInputEditor = null) }
     }
 
     fun submitUrl(raw: String) {
         val normalized = UrlNormalizer.validate(raw) ?: return
         val updated =
             listOf(normalized) + _uiState.value.recentUrls.filter { it != normalized }.take(MAX_RECENT_URLS - 1)
-        _uiState.update { current ->
+        updateState { current ->
             current.copy(
                 requestedUrl = normalized,
+                loading = true,
                 urlEditorVisible = false,
                 urlDrawerVisible = false,
                 menuVisible = false,
