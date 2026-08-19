@@ -1,5 +1,10 @@
 package com.thelightphone.lightpage
 
+enum class PageTheme {
+    LIGHT,
+    DARK,
+}
+
 sealed interface UrlEditorMode {
     data object Add : UrlEditorMode
     data class Edit(val index: Int) : UrlEditorMode
@@ -20,7 +25,7 @@ data class BrowserUiState(
     val readerForced: Boolean = false,
     val readerApplied: Boolean = false,
     val cssInjectionEnabled: Boolean = true,
-    val themeInverted: Boolean = false,
+    val pageTheme: PageTheme = PageTheme.DARK,
     val menuVisible: Boolean = false,
     val urlDrawerVisible: Boolean = false,
     val urlEditorVisible: Boolean = false,

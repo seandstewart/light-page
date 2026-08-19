@@ -65,7 +65,7 @@ class BrowserViewModelTest {
     fun `initial state restores preferences`() = runTest {
         preferences.setLastUrl("https://saved.example.com")
         preferences.setReaderEnabled(false)
-        preferences.setThemeInverted(true)
+        preferences.setPageTheme(PageTheme.LIGHT)
         preferences.setCssInjectionEnabled(false)
         preferences.setRecentUrls(listOf("https://one.example.com", "https://two.example.com"))
 
@@ -77,7 +77,7 @@ class BrowserViewModelTest {
         val state = viewModel.uiState.first()
         assertEquals("https://saved.example.com", state.requestedUrl)
         assertFalse(state.readerRequested)
-        assertTrue(state.themeInverted)
+        assertEquals(PageTheme.LIGHT, state.pageTheme)
         assertFalse(state.cssInjectionEnabled)
         assertEquals(listOf("https://one.example.com", "https://two.example.com"), state.recentUrls)
     }
@@ -148,13 +148,13 @@ class BrowserViewModelTest {
     }
 
     @Test
-    fun `toggleThemeInverted flips theme inverted and persists`() = runTest {
+    fun `setPageTheme sets page theme and persists`() = runTest {
         val viewModel = BrowserViewModel(preferences = preferences)
-        viewModel.toggleThemeInverted()
+        viewModel.setPageTheme(PageTheme.LIGHT)
         advanceUntilIdle()
         val state = viewModel.uiState.first()
-        assertTrue(state.themeInverted)
-        assertTrue(preferences.themeInverted.first())
+        assertEquals(PageTheme.LIGHT, state.pageTheme)
+        assertEquals(PageTheme.LIGHT, preferences.pageTheme.first())
     }
 
     @Test

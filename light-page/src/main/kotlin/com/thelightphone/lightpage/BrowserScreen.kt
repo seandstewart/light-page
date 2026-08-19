@@ -118,12 +118,12 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
         val state by viewModel.uiState.collectAsState()
         val keyboardOptionsFlow = rememberKeyboardOptions()
 
-        LaunchedEffect(state.themeInverted) {
-            if (state.themeInverted) LightThemeController.setLightTheme()
+        LaunchedEffect(state.pageTheme) {
+            if (state.pageTheme == PageTheme.LIGHT) LightThemeController.setLightTheme()
             else LightThemeController.setDarkTheme()
         }
 
-        LaunchedEffect(state.readerRequested, state.readerForced, state.themeInverted, state.cssInjectionEnabled) {
+        LaunchedEffect(state.readerRequested, state.readerForced, state.pageTheme, state.cssInjectionEnabled) {
             webView?.apply {
                 applyLightGlobals(state)
                 evaluateJavascript(
@@ -247,7 +247,7 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
                         onClose = { viewModel.showMenu(false) },
                         onToggleReader = { viewModel.toggleReader() },
                         onToggleCss = { viewModel.toggleCssInjection() },
-                        onToggleTheme = { viewModel.toggleThemeInverted() },
+                        onToggleTheme = { viewModel.setPageTheme(if (state.pageTheme == PageTheme.DARK) PageTheme.LIGHT else PageTheme.DARK) },
                         onOpenUrlDrawer = { viewModel.showUrlDrawer(true) }
                     )
                 }
@@ -324,7 +324,7 @@ private fun WebView.applyLightGlobals(state: BrowserUiState) {
         "window.__lightReaderEnabled = ${state.readerRequested}; " +
                 "window.__lightReaderForced = ${state.readerForced}; " +
                 "window.__lightCssInjectionEnabled = ${state.cssInjectionEnabled}; " +
-                "window.__lightUseDarkTheme = ${!state.themeInverted};",
+                "window.__lightUseDarkTheme = ${state.pageTheme == PageTheme.DARK};",
         null
     )
 }
@@ -396,9 +396,9 @@ private fun MenuDrawer(
             onClick = onToggleCss
         )
         MenuRow(
-            label = "Invert",
-            subtitle = if (state.themeInverted) "Light mode" else "Dark mode",
-            icon = if (state.themeInverted) LightIcons.TOGGLE_STATE_ON else LightIcons.TOGGLE_STATE_OFF,
+            label = "Theme",
+            subtitle = if (state.pageTheme == PageTheme.LIGHT) "Light mode" else "Dark mode",
+            icon = if (state.pageTheme == PageTheme.LIGHT) LightIcons.TOGGLE_STATE_ON else LightIcons.TOGGLE_STATE_OFF,
             onClick = onToggleTheme
         )
         MenuRow(

@@ -27,7 +27,7 @@ class BrowserViewModel(
         // Set the initial Light theme before the first composition so the top bar
         // and drawer backgrounds match the persisted/default state instead of
         // flashing the controller default.
-        if (_uiState.value.themeInverted) LightThemeController.setLightTheme()
+        if (_uiState.value.pageTheme == PageTheme.LIGHT) LightThemeController.setLightTheme()
         else LightThemeController.setDarkTheme()
 
         // Async preference restoration: the initial state uses the default URL and
@@ -38,14 +38,14 @@ class BrowserViewModel(
                 preferences.lastUrl,
                 preferences.readerEnabled,
                 preferences.readerForced,
-                preferences.themeInverted,
+                preferences.pageTheme,
                 preferences.cssInjectionEnabled,
                 preferences.recentUrls,
             ) { values ->
                 val lastUrl = values[0] as String?
                 val readerEnabled = values[1] as Boolean
                 val readerForced = values[2] as Boolean
-                val themeInverted = values[3] as Boolean
+                val pageTheme = values[3] as PageTheme
                 val cssInjectionEnabled = values[4] as Boolean
 
                 @Suppress("UNCHECKED_CAST")
@@ -55,7 +55,7 @@ class BrowserViewModel(
                         requestedUrl = if (lastUrl != null && current.requestedUrl != lastUrl) lastUrl else current.requestedUrl,
                         readerRequested = readerEnabled,
                         readerForced = readerForced,
-                        themeInverted = themeInverted,
+                        pageTheme = pageTheme,
                         cssInjectionEnabled = cssInjectionEnabled,
                         recentUrls = recentUrls,
                     )
@@ -96,10 +96,9 @@ class BrowserViewModel(
         viewModelScope.launch { preferences.setCssInjectionEnabled(next) }
     }
 
-    fun toggleThemeInverted() {
-        val next = !_uiState.value.themeInverted
-        _uiState.update { it.copy(themeInverted = next) }
-        viewModelScope.launch { preferences.setThemeInverted(next) }
+    fun setPageTheme(theme: PageTheme) {
+        _uiState.update { it.copy(pageTheme = theme) }
+        viewModelScope.launch { preferences.setPageTheme(theme) }
     }
 
     fun showMenu(visible: Boolean) = _uiState.update { it.copy(menuVisible = visible) }

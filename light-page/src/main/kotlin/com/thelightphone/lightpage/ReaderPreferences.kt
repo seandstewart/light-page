@@ -24,8 +24,8 @@ class ReaderPreferences(private val dataStore: DataStore<Preferences>) {
     val lastUrl: Flow<String?> = dataStore.data
         .map { it[KEY_LAST_URL] }
 
-    val themeInverted: Flow<Boolean> = dataStore.data
-        .map { it[KEY_THEME_INVERTED] ?: false }
+    val pageTheme: Flow<PageTheme> = dataStore.data
+        .map { it[KEY_PAGE_THEME]?.let { name -> PageTheme.valueOf(name) } ?: PageTheme.DARK }
 
     val cssInjectionEnabled: Flow<Boolean> = dataStore.data
         .map { it[KEY_CSS_INJECTION_ENABLED] ?: true }
@@ -45,8 +45,8 @@ class ReaderPreferences(private val dataStore: DataStore<Preferences>) {
         dataStore.edit { it[KEY_LAST_URL] = url }
     }
 
-    suspend fun setThemeInverted(inverted: Boolean) {
-        dataStore.edit { it[KEY_THEME_INVERTED] = inverted }
+    suspend fun setPageTheme(theme: PageTheme) {
+        dataStore.edit { it[KEY_PAGE_THEME] = theme.name }
     }
 
     suspend fun setCssInjectionEnabled(enabled: Boolean) {
@@ -61,7 +61,7 @@ class ReaderPreferences(private val dataStore: DataStore<Preferences>) {
         val KEY_READER_ENABLED = booleanPreferencesKey("reader_enabled")
         val KEY_READER_FORCED = booleanPreferencesKey("reader_forced")
         val KEY_LAST_URL = stringPreferencesKey("last_url")
-        val KEY_THEME_INVERTED = booleanPreferencesKey("theme_inverted")
+        val KEY_PAGE_THEME = stringPreferencesKey("page_theme")
         val KEY_CSS_INJECTION_ENABLED = booleanPreferencesKey("css_injection_enabled")
         val KEY_RECENT_URLS = stringPreferencesKey("recent_urls")
     }
