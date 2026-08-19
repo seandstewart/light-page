@@ -260,6 +260,7 @@
       if (base) base.remove();
       if (reader) reader.remove();
     }
+    window.__lightToolRefresh();
   };
 
   window.__lightToolRefresh = () => {

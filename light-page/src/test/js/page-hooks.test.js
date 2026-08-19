@@ -642,6 +642,190 @@ test("__lightSetState updates state and refreshes", async () => {
   }
 });
 
+test("reload persistence keeps theme and reader state", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Reload</title></head><body>
+      <article>
+        <h1>Reload Article</h1>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    window.__lightSetState({
+      readerRequested: true,
+      readerForced: true,
+      cssInjectionEnabled: true,
+      pageTheme: "DARK",
+    });
+    await window.__lightToolRefresh();
+
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), true, "dark mode should be applied");
+    assert.strictEqual(window.__lightReaderApplied, true, "reader should be applied");
+    assert.ok(document.getElementById("__light_reader_root"), "reader root should exist");
+
+    await window.__lightToolRefresh();
+
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), true, "dark mode should persist after reload");
+    assert.strictEqual(window.__lightReaderApplied, true, "reader should persist after reload");
+    assert.ok(document.getElementById("__light_reader_root"), "reader root should persist after reload");
+
+    window.__lightSetState({
+      readerRequested: false,
+      readerForced: false,
+      cssInjectionEnabled: true,
+      pageTheme: "DARK",
+    });
+    await window.__lightToolRefresh();
+
+    assert.strictEqual(window.__lightReaderApplied, false, "reader should be unapplied when disabled");
+    assert.ok(!document.getElementById("__light_reader_root"), "reader root should be removed when disabled");
+  } finally {
+    close();
+  }
+});
+
+test("__lightSetState toggles dark mode and themes shadow roots", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Shadow</title></head><body>
+      <div id="host"></div>
+      <article>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    const host = document.getElementById("host");
+    const shadow = host.attachShadow({ mode: "open" });
+    shadow.appendChild(document.createElement("div"));
+
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), false, "document should initially be light");
+    assert.strictEqual(host.classList.contains("__light_dark_mode"), false, "shadow host should initially be light");
+
+    window.__lightSetState({
+      readerRequested: false,
+      readerForced: false,
+      cssInjectionEnabled: true,
+      pageTheme: "DARK",
+    });
+    await window.__lightToolRefresh();
+
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), true, "documentElement should be dark after toggle");
+    assert.strictEqual(host.classList.contains("__light_dark_mode"), true, "shadow host should be dark after toggle");
+    assert.ok(shadow.getElementById("__light_base_theme"), "shadow root should receive base theme style");
+  } finally {
+    close();
+  }
+});
+
+test("navigation re-applies theme and reader after pushState", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Navigation</title></head><body>
+      <article>
+        <h1>Navigation Article</h1>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    await window.__lightSetReaderEnabled(true);
+    window.__lightUseDarkTheme = true;
+    assert.strictEqual(window.__lightReaderApplied, true, "reader should be applied initially");
+
+    let refreshPromise = null;
+    const originalRefresh = window.__lightToolRefresh;
+    window.__lightToolRefresh = () => {
+      const result = originalRefresh();
+      refreshPromise = result;
+      return result;
+    };
+
+    window.history.pushState({}, "", "/new-article");
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    await refreshPromise;
+
+    assert.strictEqual(window.__lightReaderApplied, true, "reader should still be applied after navigation");
+    assert.strictEqual(document.documentElement.classList.contains("__light_dark_mode"), true, "dark mode should remain after navigation");
+  } finally {
+    close();
+  }
+});
+
+test("reader disabled after __lightSetState removes reader root", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>State</title></head><body>
+      <article>
+        <h1>State Article</h1>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    await window.__lightSetReaderEnabled(true);
+    assert.strictEqual(window.__lightReaderApplied, true, "reader should be applied initially");
+    assert.ok(document.getElementById("__light_reader_root"), "reader root should exist");
+
+    window.__lightSetState({
+      readerRequested: false,
+      readerForced: false,
+      cssInjectionEnabled: true,
+      pageTheme: "LIGHT",
+    });
+    await window.__lightToolRefresh();
+
+    assert.strictEqual(window.__lightReaderApplied, false, "reader should be unapplied");
+    assert.ok(!document.getElementById("__light_reader_root"), "reader root should be removed");
+  } finally {
+    close();
+  }
+});
+
+test("CSS disabled hides reader and restores original page", async () => {
+  const html = `
+    <!DOCTYPE html>
+    <html><head><title>Css</title></head><body>
+      <article>
+        <h1>CSS Article</h1>
+        <p>${"Lorem ipsum dolor sit amet. ".repeat(30)}</p>
+        <p>${"Consectetur adipiscing elit. ".repeat(30)}</p>
+        <p>${"Sed do eiusmod tempor incididunt. ".repeat(30)}</p>
+      </article>
+    </body></html>
+  `;
+  const { window, document, close } = bootHooks(html);
+  try {
+    await window.__lightSetReaderEnabled(true);
+    assert.strictEqual(window.__lightReaderApplied, true, "reader should be applied");
+    assert.ok(document.getElementById("__light_reader_root"), "reader root should exist");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), true, "original page should be hidden");
+
+    window.__lightSetCssInjectionEnabled(false);
+    await window.__lightToolRefresh();
+
+    assert.ok(!document.getElementById("__light_reader_root"), "reader root should be removed when CSS is disabled");
+    assert.strictEqual(document.documentElement.classList.contains("__light_reader_hidden"), false, "original page should be visible");
+    assert.strictEqual(window.__lightReaderApplied, false, "reader should be unapplied");
+  } finally {
+    close();
+  }
+});
+
 test("shadow roots are not themed when CSS injection is disabled", () => {
   const html = `
     <!DOCTYPE html>
