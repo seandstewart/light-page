@@ -12,13 +12,17 @@ import kotlinx.coroutines.launch
 
 class BrowserViewModel(
     private val preferences: ReaderPreferences,
-    initialUrl: String = defaultStartUrl()
+    launchUrl: String? = null
 ) : LightViewModel<Unit>() {
+
+    private val launchRequest: String? = launchUrl?.let { UrlNormalizer.validate(it) }
+    private var pendingLaunch: String? = launchRequest
 
     private val _uiState = MutableStateFlow(
         BrowserUiState(
-            requestedUrl = initialUrl,
-            readerRequested = true
+            requestedUrl = launchRequest ?: defaultStartUrl(),
+            readerRequested = true,
+            loading = launchRequest != null
         )
     )
     val uiState: StateFlow<BrowserUiState> = _uiState.asStateFlow()
@@ -57,15 +61,38 @@ class BrowserViewModel(
 
                 @Suppress("UNCHECKED_CAST")
                 val recentUrls = values[5] as List<String>
-                updateState { current ->
-                    current.copy(
-                        requestedUrl = if (lastUrl != null && current.requestedUrl != lastUrl) lastUrl else current.requestedUrl,
-                        readerRequested = readerEnabled,
-                        readerForced = readerForced,
-                        pageTheme = pageTheme,
-                        cssInjectionEnabled = cssInjectionEnabled,
-                        recentUrls = recentUrls,
-                    )
+                val launch = pendingLaunch
+                if (launch != null) {
+                    pendingLaunch = null
+                    val updated = recordVisit(launch, recentUrls)
+                    updateState { current ->
+                        current.copy(
+                            requestedUrl = launch,
+                            loading = true,
+                            error = null,
+                            readerRequested = readerEnabled,
+                            readerForced = readerForced,
+                            pageTheme = pageTheme,
+                            cssInjectionEnabled = cssInjectionEnabled,
+                            recentUrls = updated,
+                        )
+                    }
+                    persistVisit(launch, updated)
+                } else {
+                    updateState { current ->
+                        current.copy(
+                            requestedUrl = if (launchRequest == null && lastUrl != null && current.requestedUrl != lastUrl) {
+                                lastUrl
+                            } else {
+                                current.requestedUrl
+                            },
+                            readerRequested = readerEnabled,
+                            readerForced = readerForced,
+                            pageTheme = pageTheme,
+                            cssInjectionEnabled = cssInjectionEnabled,
+                            recentUrls = recentUrls,
+                        )
+                    }
                 }
             }.collect { }
         }
@@ -176,8 +203,7 @@ class BrowserViewModel(
 
     fun submitUrl(raw: String) {
         val normalized = UrlNormalizer.validate(raw) ?: return
-        val updated =
-            listOf(normalized) + _uiState.value.recentUrls.filter { it != normalized }.take(MAX_RECENT_URLS - 1)
+        val updated = recordVisit(normalized, _uiState.value.recentUrls)
         updateState { current ->
             current.copy(
                 requestedUrl = normalized,
@@ -189,6 +215,13 @@ class BrowserViewModel(
                 error = null
             )
         }
+        persistVisit(normalized, updated)
+    }
+
+    private fun recordVisit(normalized: String, base: List<String>): List<String> =
+        (listOf(normalized) + base.filter { it != normalized }).take(MAX_RECENT_URLS)
+
+    private fun persistVisit(normalized: String, updated: List<String>) {
         viewModelScope.launch {
             preferences.setLastUrl(normalized)
             preferences.setRecentUrls(updated)

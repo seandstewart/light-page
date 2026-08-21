@@ -1,6 +1,7 @@
 package com.thelightphone.sdk
 
 import android.content.Context
+import android.content.Intent
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.WindowManager
@@ -218,6 +219,12 @@ class LightActivity internal constructor() : ComponentActivity() {
     override fun onPause() {
         super.onPause()
         currentScreen.value?.screen?.notifyAppPause()
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        currentScreen.value?.screen?.notifyNewIntent(intent.dataString)
     }
 
     override fun onResume() {

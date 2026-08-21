@@ -14,12 +14,20 @@ abstract class SimpleLightScreen<ResultType>(sealedActivity: SealedLightActivity
     internal var result: ResultType? = null
     protected val lightContext = SealedLightContext(sealedActivity.activity)
 
+    /**
+     * Data string carried by the activity's current launch intent, e.g. the
+     * URL of an ACTION_VIEW launch from another app. Null for plain launches.
+     */
+    protected val launchData: String?
+        get() = activity.intent?.dataString
+
     @Composable
     abstract fun Content()
     open fun willShow() {}
     open fun willHide() {}
     open fun onAppPause() {}
     open fun onScreenDestroy() {}
+    open fun onNewIntentData(data: String?) {}
 
     internal open fun notifyWillShow() {
         willShow()
@@ -31,6 +39,10 @@ abstract class SimpleLightScreen<ResultType>(sealedActivity: SealedLightActivity
 
     internal open fun notifyAppPause() {
         onAppPause()
+    }
+
+    internal open fun notifyNewIntent(data: String?) {
+        onNewIntentData(data)
     }
 
     internal open fun destroy() {

@@ -51,10 +51,10 @@ class BrowserViewModelTest {
     }
 
     @Test
-    fun `initial state uses provided url and reader requested`() = runTest {
+    fun `initial state uses launch url and reader requested`() = runTest {
         val viewModel = BrowserViewModel(
             preferences = preferences,
-            initialUrl = "https://test.example.com"
+            launchUrl = "https://test.example.com"
         )
         val state = viewModel.uiState.first()
         assertEquals("https://test.example.com", state.requestedUrl)
@@ -69,10 +69,7 @@ class BrowserViewModelTest {
         preferences.setCssInjectionEnabled(false)
         preferences.setRecentUrls(listOf("https://one.example.com", "https://two.example.com"))
 
-        val viewModel = BrowserViewModel(
-            preferences = preferences,
-            initialUrl = "https://test.example.com"
-        )
+        val viewModel = BrowserViewModel(preferences = preferences)
         advanceUntilIdle()
         val state = viewModel.uiState.first()
         assertEquals("https://saved.example.com", state.requestedUrl)
@@ -80,6 +77,60 @@ class BrowserViewModelTest {
         assertEquals(PageTheme.LIGHT, state.pageTheme)
         assertFalse(state.cssInjectionEnabled)
         assertEquals(listOf("https://one.example.com", "https://two.example.com"), state.recentUrls)
+    }
+
+    @Test
+    fun `launch url beats restored last url`() = runTest {
+        preferences.setLastUrl("https://saved.example.com")
+
+        val viewModel = BrowserViewModel(
+            preferences = preferences,
+            launchUrl = "https://clicked.example.com/page"
+        )
+        advanceUntilIdle()
+        assertEquals("https://clicked.example.com/page", viewModel.uiState.first().requestedUrl)
+    }
+
+    @Test
+    fun `launch url is recorded in recent urls and persisted as last url`() = runTest {
+        preferences.setLastUrl("https://saved.example.com")
+        preferences.setRecentUrls(listOf("https://old.example.com"))
+
+        val viewModel = BrowserViewModel(
+            preferences = preferences,
+            launchUrl = "https://clicked.example.com/page"
+        )
+        advanceUntilIdle()
+        val state = viewModel.uiState.first()
+        assertEquals(listOf("https://clicked.example.com/page", "https://old.example.com"), state.recentUrls)
+        assertEquals("https://clicked.example.com/page", preferences.lastUrl.first())
+        assertEquals(listOf("https://clicked.example.com/page", "https://old.example.com"), preferences.recentUrls.first())
+    }
+
+    @Test
+    fun `launch url dedupes recent urls`() = runTest {
+        preferences.setRecentUrls(listOf("https://dup.example.com", "https://other.example.com"))
+
+        val viewModel = BrowserViewModel(
+            preferences = preferences,
+            launchUrl = "https://dup.example.com"
+        )
+        advanceUntilIdle()
+        val state = viewModel.uiState.first()
+        assertEquals("https://dup.example.com", state.requestedUrl)
+        assertEquals(listOf("https://dup.example.com", "https://other.example.com"), state.recentUrls)
+    }
+
+    @Test
+    fun `invalid launch url falls back to restored last url`() = runTest {
+        preferences.setLastUrl("https://saved.example.com")
+
+        val viewModel = BrowserViewModel(
+            preferences = preferences,
+            launchUrl = "not a valid url"
+        )
+        advanceUntilIdle()
+        assertEquals("https://saved.example.com", viewModel.uiState.first().requestedUrl)
     }
 
     @Test
@@ -285,7 +336,7 @@ class BrowserViewModelTest {
     fun `submitUrl ignores invalid url`() = runTest {
         val viewModel = BrowserViewModel(
             preferences = preferences,
-            initialUrl = "https://initial.example.com"
+            launchUrl = "https://initial.example.com"
         )
         viewModel.showUrlEditor(UrlEditorMode.Add)
         viewModel.submitUrl("not a valid url")
@@ -407,7 +458,7 @@ class BrowserViewModelTest {
 
     @Test
     fun `submitUrl sets statusScreenVisible true`() = runTest {
-        val viewModel = BrowserViewModel(preferences = preferences, initialUrl = "")
+        val viewModel = BrowserViewModel(preferences = preferences)
         viewModel.submitUrl("https://example.com")
         val state = viewModel.uiState.first()
         assertEquals("https://example.com", state.requestedUrl)
@@ -417,10 +468,12 @@ class BrowserViewModelTest {
 
     @Test
     fun `submitUrl with empty string keeps statusScreenVisible false`() = runTest {
-        val viewModel = BrowserViewModel(preferences = preferences, initialUrl = "")
+        preferences.setLastUrl("https://saved.example.com")
+        val viewModel = BrowserViewModel(preferences = preferences)
+        advanceUntilIdle()
         viewModel.submitUrl("")
         val state = viewModel.uiState.first()
-        assertEquals("", state.requestedUrl)
+        assertEquals("https://saved.example.com", state.requestedUrl)
         assertFalse(state.loading)
         assertFalse(state.statusScreenVisible)
     }

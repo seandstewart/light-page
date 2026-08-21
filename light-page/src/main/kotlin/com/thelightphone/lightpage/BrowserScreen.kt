@@ -70,8 +70,13 @@ class BrowserScreen(sealedActivity: SealedLightActivity) : LightScreen<Unit, Bro
         get() = BrowserViewModel::class.java
 
     override fun createViewModel(): BrowserViewModel = BrowserViewModel(
-        preferences = ReaderPreferences(lightContext.dataStore)
+        preferences = ReaderPreferences(lightContext.dataStore),
+        launchUrl = launchData
     )
+
+    override fun onNewIntentData(data: String?) {
+        if (data != null) viewModel.submitUrl(data)
+    }
 
     private var webView: WebView? = null
 
